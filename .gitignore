@@ -47,7 +47,8 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
-*.py,cover
+#*.py,cover
+cover
 .hypothesis/
 .pytest_cache/
 
@@ -58,6 +59,7 @@ coverage.xml
 # Django stuff:
 *.log
 local_settings.py
+prod_settings.py
 db.sqlite3
 db.sqlite3-journal
 
@@ -127,3 +129,39 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# IntelliJ project files
+.idea
+.idea/
+*.iml
+out
+gen
+
+
+# MySQL config
+my.cnf
+
+# MySQL dump
+dump
+dump.sql
+db*.json
+
+
+# Django model
+migrations
+
+# Script files
+01m*
+02m*
+run*
+sup*
+03d*
+04d*
+
+.prettierrc.js
+
+# VSCode
+
+.vscode/
+
+dev_settings.ini
