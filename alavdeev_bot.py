@@ -17,6 +17,7 @@ DEV_SETTINGS = "./dev_settings.ini"
 SETTINGS = "./settings.ini"
 CURR_SETTINGS = ""
 MANAGER_ID = "5174228279"
+user_data_for_join = {}
 config = configparser.ConfigParser()
 if os.path.isfile(DEV_SETTINGS):
     config.read(DEV_SETTINGS)
@@ -33,7 +34,7 @@ bot = telebot.TeleBot(TOKEN, parse_mode=None)
 cal = Calendar(language=RUSSIAN_LANGUAGE)
 enroll_calendar_online = CallbackData("enroll_calendar_online", "action", "year", "month", "day")
 enroll_calendar_offline = CallbackData("enroll_calendar_offline", "action", "year", "month", "day")
-prev_callback_data_enroll = ""
+user_data_for_join = {}
 
 logger = telebot.logger
 telebot.logger.setLevel(logging.WARNING)
@@ -42,7 +43,7 @@ telebot.logger.setLevel(logging.WARNING)
 @bot.callback_query_handler(func=lambda call: call.data.startswith("enroll_start_shelter"))
 def set_name(call: CallbackQuery):
     global user_data_for_join
-    user_data_for_join = {}
+    user_data_for_join = {"owner" : f"{call.message.chat.id}"}
     msg_instance = bot.send_message(call.message.chat.id, "Укажите Ваше имя")
     bot.register_next_step_handler(msg_instance, set_surname)
 
@@ -61,7 +62,7 @@ def set_email(message):
 
 def set_enroll_type(message):
     if validators.email(message.text):
-        keyboard = keyboard = InlineKeyboardMarkup()
+        keyboard = InlineKeyboardMarkup()
         keyboard.row(
             InlineKeyboardButton("Online", callback_data="enroll_type_online"),
             InlineKeyboardButton("Offline", callback_data="enroll_type_offline"),
@@ -84,6 +85,8 @@ def help_cmd(message):
 
 @bot.message_handler(commands=["start"])
 def start_cmd(message):
+    global user_data_for_join
+    user_data_for_join = {}
     start_keyboard = InlineKeyboardMarkup(row_width=2)
     start_keyboard.row(
         InlineKeyboardButton("Инфо", callback_data="info_get"),
@@ -110,7 +113,6 @@ def start_cmd(message):
 def show_info(call: CallbackQuery):
     keyboard = InlineKeyboardMarkup()
     keyboard.row(InlineKeyboardButton("В начало", callback_data="info_shelter_START"))
-    callback_data_info_list = []
     if call.data == "info_get":
         bot.edit_message_text(
             chat_id=call.message.chat.id,
@@ -172,8 +174,8 @@ def calendar_online(call: CallbackQuery):
         )
         bot.send_message(
             MANAGER_ID,
-            text=f"{msg_datetime} У Вас новая запись (id={call.message.chat.id} username={call.message.chat.username} данные: {str(user_data_for_join)}) \
-на online консультацию на {date.strftime('%d.%m.%Y')}",
+            text=f"{msg_datetime} У Вас новая запись (id={call.message.chat.id} username={call.message.chat.username} \
+данные: {str(user_data_for_join)}) на online консультацию на {date.strftime('%d.%m.%Y')}",
         )
         print(f"{enroll_calendar_online}: Day: {date.strftime('%d.%m.%Y')}")
     elif action == "CANCEL":
@@ -203,8 +205,8 @@ def calendar_offline(call: CallbackQuery):
         )
         bot.send_message(
             MANAGER_ID,
-            text=f"{msg_datetime} У Вас новая запись (id={call.message.chat.id} username={call.message.chat.username} данные: {str(user_data_for_join)}) \
-на offline консультацию на {date.strftime('%d.%m.%Y')}",
+            text=f"{msg_datetime} У Вас новая запись (id={call.message.chat.id} username={call.message.chat.username} \
+данные: {str(user_data_for_join)}) на offline консультацию на {date.strftime('%d.%m.%Y')}",
         )
         print(f"{enroll_calendar_offline}: Day: {date.strftime('%d.%m.%Y')}")
     elif action == "CANCEL":
