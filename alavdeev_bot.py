@@ -40,44 +40,6 @@ logger = telebot.logger
 telebot.logger.setLevel(logging.WARNING)
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("enroll_start_shelter"))
-def set_name(call: CallbackQuery):
-    global user_data_for_join
-    user_data_for_join = {"owner" : f"{call.message.chat.id}"}
-    msg_instance = bot.send_message(call.message.chat.id, "Укажите Ваше имя")
-    bot.register_next_step_handler(msg_instance, set_surname)
-
-
-def set_surname(message):
-    msg_instance = bot.send_message(message.chat.id, "Укажите Вашу фамилию")
-    user_data_for_join["name"] = message.text
-    bot.register_next_step_handler(msg_instance, set_email)
-
-
-def set_email(message):
-    msg_instance = bot.send_message(message.chat.id, "Укажите Ваш e-mail")
-    user_data_for_join["surname"] = message.text
-    bot.register_next_step_handler(msg_instance, set_enroll_type)
-
-
-def set_enroll_type(message):
-    if validators.email(message.text):
-        keyboard = InlineKeyboardMarkup()
-        keyboard.row(
-            InlineKeyboardButton("Online", callback_data="enroll_type_online"),
-            InlineKeyboardButton("Offline", callback_data="enroll_type_offline"),
-        )
-        bot.send_message(
-            chat_id=message.chat.id,
-            text="Вы хотите записаться на консультацию online или встретиться с врачом в офисе (offline)?",
-            reply_markup=keyboard,
-        )
-        user_data_for_join["email"] = message.text
-    else:
-        bot.send_message(message.chat.id, "Не корректный email!! Попробуйте ввести ещё разок! (example@mail.ru)")
-        bot.register_next_step_handler(message, set_enroll_type)
-
-
 @bot.message_handler(commands=["help"])
 def help_cmd(message):
     bot.reply_to(message, "Тут будет описание команд и возможностей бота")
@@ -85,8 +47,6 @@ def help_cmd(message):
 
 @bot.message_handler(commands=["start"])
 def start_cmd(message):
-    global user_data_for_join
-    user_data_for_join = {}
     start_keyboard = InlineKeyboardMarkup(row_width=2)
     start_keyboard.row(
         InlineKeyboardButton("Инфо", callback_data="info_get"),
@@ -122,6 +82,48 @@ def show_info(call: CallbackQuery):
         )
     if call.data == "info_shelter_START":
         start_cmd(call.message)
+
+
+# ====== Блок прохождения опроса ========
+@bot.callback_query_handler(func=lambda call: call.data.startswith("enroll_start_shelter"))
+def set_name(call: CallbackQuery):
+    global user_data_for_join
+    user_data_for_join[call.message.chat.id] = {}
+    msg_instance = bot.send_message(call.message.chat.id, "Укажите Ваше имя")
+    bot.register_next_step_handler(msg_instance, set_surname)
+
+
+def set_surname(message):
+    msg_instance = bot.send_message(message.chat.id, "Укажите Вашу фамилию")
+    user_data_for_join[message.chat.id] = {"name": message.text}
+    bot.register_next_step_handler(msg_instance, set_email)
+
+
+def set_email(message):
+    msg_instance = bot.send_message(message.chat.id, "Укажите Ваш e-mail")
+    user_data_for_join[message.chat.id]["surname"] = message.text
+    bot.register_next_step_handler(msg_instance, set_enroll_type)
+
+
+def set_enroll_type(message):
+    if validators.email(message.text):
+        keyboard = InlineKeyboardMarkup()
+        keyboard.row(
+            InlineKeyboardButton("Online", callback_data="enroll_type_online"),
+            InlineKeyboardButton("Offline", callback_data="enroll_type_offline"),
+        )
+        bot.send_message(
+            chat_id=message.chat.id,
+            text="Вы хотите записаться на консультацию online или встретиться с врачом в офисе (offline)?",
+            reply_markup=keyboard,
+        )
+        user_data_for_join[message.chat.id]["email"] = message.text
+    else:
+        bot.send_message(message.chat.id, "Не корректный email!! Попробуйте ввести ещё разок! (example@mail.ru)")
+        bot.register_next_step_handler(message, set_enroll_type)
+
+
+# ====== Конец блока прохождения опроса ========
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("enroll_type_"))
@@ -175,7 +177,7 @@ def calendar_online(call: CallbackQuery):
         bot.send_message(
             MANAGER_ID,
             text=f"{msg_datetime} У Вас новая запись (id={call.message.chat.id} username={call.message.chat.username} \
-данные: {str(user_data_for_join)}) на online консультацию на {date.strftime('%d.%m.%Y')}",
+данные: {str(user_data_for_join[call.message.chat.id])}) на online консультацию на {date.strftime('%d.%m.%Y')}",
         )
         print(f"{enroll_calendar_online}: Day: {date.strftime('%d.%m.%Y')}")
     elif action == "CANCEL":
@@ -206,9 +208,8 @@ def calendar_offline(call: CallbackQuery):
         bot.send_message(
             MANAGER_ID,
             text=f"{msg_datetime} У Вас новая запись (id={call.message.chat.id} username={call.message.chat.username} \
-данные: {str(user_data_for_join)}) на offline консультацию на {date.strftime('%d.%m.%Y')}",
+данные: {str(user_data_for_join[call.message.chat.id])}) на offline консультацию на {date.strftime('%d.%m.%Y')}",
         )
-        print(f"{enroll_calendar_offline}: Day: {date.strftime('%d.%m.%Y')}")
     elif action == "CANCEL":
         start_cmd(call.message)
 
