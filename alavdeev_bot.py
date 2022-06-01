@@ -16,7 +16,6 @@ import validators
 DEV_SETTINGS = "./dev_settings.ini"
 SETTINGS = "./settings.ini"
 CURR_SETTINGS = ""
-MANAGER_ID = "5174228279"
 user_data_for_join = {}
 config = configparser.ConfigParser()
 if os.path.isfile(DEV_SETTINGS):
@@ -27,6 +26,7 @@ else:
     CURR_SETTINGS = SETTINGS
 try:
     TOKEN = config["Telegram"]["token"]
+    MANAGER_ID = config["Telegram"]["manager_id"]
 except Exception:
     print(f"Something wrong with {CURR_SETTINGS}")
     exit()
