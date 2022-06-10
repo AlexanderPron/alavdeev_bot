@@ -13,6 +13,16 @@ import configparser
 import os.path
 import validators
 
+# ======== Google calendar api imports ===========
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+# ================================================
+
+SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 DEV_SETTINGS = "./dev_settings.ini"
 SETTINGS = "./settings.ini"
 CURR_SETTINGS = ""
@@ -169,17 +179,17 @@ def calendar_online(call: CallbackQuery):
         msg_datetime = datetime.datetime.fromtimestamp(call.message.date)
         keyboard = InlineKeyboardMarkup()
         keyboard.row(InlineKeyboardButton("В начало", callback_data="info_shelter_START"))
-        bot.send_message(
-            call.message.chat.id,
-            f"Вы успешно записались на online консультацию на {date.strftime('%d.%m.%Y')}",
-            reply_markup=keyboard,
-        )
-        bot.send_message(
-            MANAGER_ID,
-            text=f"{msg_datetime} У Вас новая запись (id={call.message.chat.id} username={call.message.chat.username} \
-данные: {str(user_data_for_join[call.message.chat.id])}) на online консультацию на {date.strftime('%d.%m.%Y')}",
-        )
-        print(f"{enroll_calendar_online}: Day: {date.strftime('%d.%m.%Y')}")
+    #         bot.send_message(
+    #             call.message.chat.id,
+    #             f"Вы успешно записались на online консультацию на {date.strftime('%d.%m.%Y')}",
+    #             reply_markup=keyboard,
+    #         )
+    #         bot.send_message(
+    #             MANAGER_ID,
+    #             text=f"{msg_datetime} У Вас новая запись (id={call.message.chat.id} username={call.message.chat.username} \
+    # данные: {str(user_data_for_join[call.message.chat.id])}) на online консультацию на {date.strftime('%d.%m.%Y')}",
+    #         )
+    #         print(f"{enroll_calendar_online}: Day: {date.strftime('%d.%m.%Y')}")
     elif action == "CANCEL":
         start_cmd(call.message)
 
@@ -200,16 +210,16 @@ def calendar_offline(call: CallbackQuery):
         msg_datetime = datetime.datetime.fromtimestamp(call.message.date)
         keyboard = InlineKeyboardMarkup()
         keyboard.row(InlineKeyboardButton("В начало", callback_data="info_shelter_START"))
-        bot.send_message(
-            call.message.chat.id,
-            f"Вы успешно записались на offline консультацию на {date.strftime('%d.%m.%Y')}",
-            reply_markup=keyboard,
-        )
-        bot.send_message(
-            MANAGER_ID,
-            text=f"{msg_datetime} У Вас новая запись (id={call.message.chat.id} username={call.message.chat.username} \
-данные: {str(user_data_for_join[call.message.chat.id])}) на offline консультацию на {date.strftime('%d.%m.%Y')}",
-        )
+    #         bot.send_message(
+    #             call.message.chat.id,
+    #             f"Вы успешно записались на offline консультацию на {date.strftime('%d.%m.%Y')}",
+    #             reply_markup=keyboard,
+    #         )
+    #         bot.send_message(
+    #             MANAGER_ID,
+    #             text=f"{msg_datetime} У Вас новая запись (id={call.message.chat.id} username={call.message.chat.username} \
+    # данные: {str(user_data_for_join[call.message.chat.id])}) на offline консультацию на {date.strftime('%d.%m.%Y')}",
+    #         )
     elif action == "CANCEL":
         start_cmd(call.message)
 
