@@ -1,5 +1,6 @@
 import datetime
 from datetime import date
+import time
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -42,7 +43,7 @@ class GoogleCalendar(object):
         print('Event created: %s' % (e.get('id')))
 
     def get_user_events_list(self, tg_username):
-        now = datetime.datetime.utcnow().isoformat() + 'Z'
+        now = datetime.datetime.now().isoformat() + '+03:00'
         events_result = self.service.events().list(
             calendarId=self.calendarId,
             timeMin=now,
@@ -61,7 +62,6 @@ class GoogleCalendar(object):
     def get_day_events(self, day):
         day_0 = day.strftime('%Y-%m-%dT%H:%M:%S+03:00')
         day_24 = (day + datetime.timedelta(hours=23, minutes=59, seconds=59)).strftime('%Y-%m-%dT%H:%M:%S+03:00')
-        print(f"{day_0}\n{day_24}")
         events_result = self.service.events().list(
             calendarId=self.calendarId,
             timeMin=day_0,
@@ -73,6 +73,41 @@ class GoogleCalendar(object):
         if not events:
             return False
         return events
+
+    def get_free_daytime(self, day, time_start="0:0", time_end="23:59"):
+        ''' Метод для получения свободного времени в определённый день.
+        Параметр time_start устанавливает начальное время (например, начало рабочего дня)
+        Параметр time_end устанавливает конечное время (например, конец рабочего дня ).
+        Если параметры time_start и time_end не заданы, то берутся полные сутки'''
+
+        empty_time_list = []
+        t1 = time.strptime(time_start, "%H:%M")  # TODO Сделать проверку на коректность ввода времени try except
+        t2 = time.strptime(time_end, "%H:%M")
+        ts = (day + datetime.timedelta(hours=t1.tm_hour, minutes=t1.tm_min)).strftime('%Y-%m-%dT%H:%M:%S+03:00')
+        te = (day + datetime.timedelta(hours=t2.tm_hour, minutes=t2.tm_min)).strftime('%Y-%m-%dT%H:%M:%S+03:00')
+        query_body = {
+            "timeMin" : ts,
+            "timeMax" : te,
+            "timeZone": 'Europe/Moscow',
+            "items" : [
+                {
+                    "id" : self.calendarId
+                }
+            ]
+        }
+        busy_info = self.service.freebusy().query(body=query_body).execute()
+        busy_time_list = busy_info.get("calendars").get(self.calendarId).get("busy", [])
+        dic = {}
+        if busy_time_list[0]["start"] > ts:
+            empty_time_list.append({'start': ts, 'end': busy_time_list[0]["start"]})
+        i = 0
+        for i in range(len(busy_time_list) - 1):
+            dic["start"] = busy_time_list[i]["end"]
+            dic["end"] = busy_time_list[i + 1]["start"]
+            empty_time_list.append({'start': dic["start"], 'end': dic["end"]})
+        if busy_time_list[-1]["end"] < te:
+            empty_time_list.append({'start': busy_time_list[-1]["end"], 'end': te})
+        return empty_time_list
 
     def delete_event(self, e_id):
         return self.service.events().delete(calendarId=self.calendarId, eventId=e_id).execute()

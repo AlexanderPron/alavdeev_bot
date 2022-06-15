@@ -222,8 +222,9 @@ def calendar_online(call: CallbackQuery):
         day=day,
     )
     if action == "DAY":
-        events_list = calendar.get_day_events(date)
-        print(events_list)
+        free_time_list = calendar.get_free_daytime(date, "10:00", "18:00")
+        # free_time_list = calendar.get_free_daytime(date)
+        print(f"free list - {str(free_time_list)}")
 
 
 #         msg_datetime = datetime.datetime.fromtimestamp(call.message.date)
@@ -352,7 +353,7 @@ def event_detail(call: CallbackQuery):
         InlineKeyboardButton("Перезаписаться", callback_data=f"event_edit::{e_id}"),
     )
     keyboard.row(
-        InlineKeyboardButton("В начало", callback_data="enroll_start_appointment"),
+        InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
         InlineKeyboardButton("Назад", callback_data="edit_appointment"),
     )
     bot.edit_message_text(
