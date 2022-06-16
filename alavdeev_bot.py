@@ -1,3 +1,4 @@
+from zoneinfo import available_timezones
 import telebot
 from telebot_calendar import Calendar, RUSSIAN_LANGUAGE, CallbackData
 from telebot.types import (
@@ -52,6 +53,24 @@ user_data_for_join = {}
 logger = telebot.logger
 telebot.logger.setLevel(logging.WARNING)
 # telebot.logger.setLevel(logging.DEBUG)
+
+
+def get_free_time_slots(free_time_list, duration):
+    available_start_time_list = []
+    for free_time_inteval in free_time_list:
+        start = datetime.datetime.strptime(free_time_inteval["start"], "%Y-%m-%dT%H:%M:%S+03:00")
+        end = datetime.datetime.strptime(free_time_inteval["end"], "%Y-%m-%dT%H:%M:%S+03:00")
+        free_minutes = (end - start).total_seconds() / 60
+        if (free_minutes < duration):
+            continue
+        else:
+            count = int(free_minutes // duration)
+            for i in range(count):
+                available_start_time_list.append((start + i * datetime.timedelta(minutes=duration)).isoformat())
+    if available_start_time_list:
+        return available_start_time_list
+    else:
+        return False
 
 
 @bot.message_handler(commands=["help"])
@@ -224,7 +243,28 @@ def calendar_online(call: CallbackQuery):
     if action == "DAY":
         free_time_list = calendar.get_free_daytime(date, "10:00", "18:00")
         # free_time_list = calendar.get_free_daytime(date)
+        free_slots = get_free_time_slots(free_time_list, 60)
         print(f"free list - {str(free_time_list)}")
+        print(free_slots)
+        keyboard = InlineKeyboardMarkup()
+        for slot in free_slots:
+            hour = slot.split("T")[1].split(":")[0]
+            minutes = slot.split("T")[1].split(":")[1]
+            keyboard.add(
+                InlineKeyboardButton(
+                    f"{hour}:{minutes}",
+                    callback_data=f"set_appointment::{hour}-{minutes}"
+                )
+            )
+        keyboard.row(
+            InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+            InlineKeyboardButton("Выбрать другую дату", callback_data="enroll_type_online"),
+        )
+        bot.send_message(
+            call.message.chat.id,
+            "Выберите время, на которое вы бы хотели записаться",
+            reply_markup=keyboard,
+        )
 
 
 #         msg_datetime = datetime.datetime.fromtimestamp(call.message.date)

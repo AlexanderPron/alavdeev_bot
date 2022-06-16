@@ -98,15 +98,18 @@ class GoogleCalendar(object):
         busy_info = self.service.freebusy().query(body=query_body).execute()
         busy_time_list = busy_info.get("calendars").get(self.calendarId).get("busy", [])
         dic = {}
-        if busy_time_list[0]["start"] > ts:
-            empty_time_list.append({'start': ts, 'end': busy_time_list[0]["start"]})
-        i = 0
-        for i in range(len(busy_time_list) - 1):
-            dic["start"] = busy_time_list[i]["end"]
-            dic["end"] = busy_time_list[i + 1]["start"]
-            empty_time_list.append({'start': dic["start"], 'end': dic["end"]})
-        if busy_time_list[-1]["end"] < te:
-            empty_time_list.append({'start': busy_time_list[-1]["end"], 'end': te})
+        if busy_time_list:
+            if busy_time_list[0]["start"] > ts:
+                empty_time_list.append({'start': ts, 'end': busy_time_list[0]["start"]})
+            i = 0
+            for i in range(len(busy_time_list) - 1):
+                dic["start"] = busy_time_list[i]["end"]
+                dic["end"] = busy_time_list[i + 1]["start"]
+                empty_time_list.append({'start': dic["start"], 'end': dic["end"]})
+            if busy_time_list[-1]["end"] < te:
+                empty_time_list.append({'start': busy_time_list[-1]["end"], 'end': te})
+        else:
+            empty_time_list.append({'start': ts, 'end': te})
         return empty_time_list
 
     def delete_event(self, e_id):
