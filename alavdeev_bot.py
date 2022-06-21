@@ -16,21 +16,12 @@ import io
 import validators
 from googleCalendar import GoogleCalendar
 
-
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
-calendarId = "alexpronin85@gmail.com"
-SERVICE_ACCOUNT_FILE = "./avd-bot-87f99ff81853.json"
-EVERYDAY_2_TIMES = "RRULE:FREQ=DAILY;COUNT=2"
-
-DEV_SETTINGS = "./dev_settings.ini"
-SETTINGS = "./settings.ini"
-CURR_SETTINGS = ""
-schedule_file = "./schedule.txt"
-DEFAULT_SCHEDULE_TEXT = "<b>Режим работы уточняйте у врача</b>"
-about_file = "./about.txt"
-DEFAULT_ABOUT_TEXT = "<b>Алексей Авдеев. Психолог-консультант, семейный психолог</b>"
-user_data_for_join = {}
 config = configparser.ConfigParser()
+DEV_SETTINGS = os.path.join(BASE_DIR, "config/dev_settings.ini")
+SETTINGS = os.path.join(BASE_DIR, "config/settings.ini")
+CURR_SETTINGS = ""
 if os.path.isfile(DEV_SETTINGS):
     config.read(DEV_SETTINGS)
     CURR_SETTINGS = DEV_SETTINGS
@@ -40,12 +31,23 @@ else:
 try:
     TOKEN = config["Telegram"]["token"]
     MANAGER_ID = config["Telegram"]["manager_id"]
+    GOOGLE_CALENDAR_ID = config["GoogleCalendar"]["calendarId"]
+    SERVICE_ACCOUNT_FILE = config["GoogleCalendar"]["service_account_file"]
 except Exception:
     print(f"Something wrong with {CURR_SETTINGS}")
     exit()
+SERVICE_ACCOUNT_FILE_PATH = os.path.join(BASE_DIR, "config", SERVICE_ACCOUNT_FILE)
+EVERYDAY_2_TIMES = "RRULE:FREQ=DAILY;COUNT=2"
+
+schedule_file_json = os.path.join(BASE_DIR, "data/schedule.json")
+# DEFAULT_SCHEDULE_TEXT = "<b>Режим работы уточняйте у врача</b>"
+about_file = os.path.join(BASE_DIR, "data/about.txt")
+DEFAULT_ABOUT_TEXT = "<b>Алексей Авдеев. Психолог-консультант, семейный психолог</b>"
+user_data_for_join = {}
+
 bot = telebot.TeleBot(TOKEN, parse_mode=None)
 cal = Calendar(language=RUSSIAN_LANGUAGE)
-calendar = GoogleCalendar(SERVICE_ACCOUNT_FILE, calendarId, SCOPES)
+calendar = GoogleCalendar(SERVICE_ACCOUNT_FILE_PATH, GOOGLE_CALENDAR_ID, SCOPES)
 calendar_online_single_cb = CallbackData("enroll_calendar_online_single", "action", "year", "month", "day")
 calendar_offline_single_cb = CallbackData("enroll_calendar_offline_single", "action", "year", "month", "day")
 calendar_online_dual_cb = CallbackData("enroll_calendar_online_dual", "action", "year", "month", "day")
@@ -63,6 +65,49 @@ telebot.logger.setLevel(logging.WARNING)
 #         self.duration = duration
 #         self.type = type
 #         self.mode = mode
+
+
+def convert_schedule_json_to_text(json_file):
+    with io.open(json_file, "r", encoding="utf-8") as f:
+        text = "<b>Вы можете записаться на консультацию</b>\n"
+        json_str = f.read()
+        json_obj = json.loads(json_str)
+        for sch_type in json_obj.keys():
+            if sch_type == "online":
+                text += "<u>Онлайн:</u>\n"
+                for day in json_obj["online"].keys():
+                    if day == "1":
+                        text += f"Понедельник {json_obj[sch_type][day]['start']}-{json_obj[sch_type][day]['end']}\n"
+                    if day == "2":
+                        text += f"Вторник {json_obj[sch_type][day]['start']}-{json_obj[sch_type][day]['end']}\n"
+                    if day == "3":
+                        text += f"Среда {json_obj[sch_type][day]['start']}-{json_obj[sch_type][day]['end']}\n"
+                    if day == "4":
+                        text += f"Четверг {json_obj[sch_type][day]['start']}-{json_obj[sch_type][day]['end']}\n"
+                    if day == "5":
+                        text += f"Пятница {json_obj[sch_type][day]['start']}-{json_obj[sch_type][day]['end']}\n"
+                    if day == "6":
+                        text += f"Суббота {json_obj[sch_type][day]['start']}-{json_obj[sch_type][day]['end']}\n"
+                    if day == "7":
+                        text += f"Воскресенье {json_obj[sch_type][day]['start']}-{json_obj[sch_type][day]['end']}\n"
+            if sch_type == "offline":
+                text += "<u>Очно:</u>\n"
+                for day in json_obj["offline"].keys():
+                    if day == "1":
+                        text += f"Понедельник {json_obj[sch_type][day]['start']}-{json_obj[sch_type][day]['end']}\n"
+                    if day == "2":
+                        text += f"Вторник {json_obj[sch_type][day]['start']}-{json_obj[sch_type][day]['end']}\n"
+                    if day == "3":
+                        text += f"Среда {json_obj[sch_type][day]['start']}-{json_obj[sch_type][day]['end']}\n"
+                    if day == "4":
+                        text += f"Четверг {json_obj[sch_type][day]['start']}-{json_obj[sch_type][day]['end']}\n"
+                    if day == "5":
+                        text += f"Пятница {json_obj[sch_type][day]['start']}-{json_obj[sch_type][day]['end']}\n"
+                    if day == "6":
+                        text += f"Суббота {json_obj[sch_type][day]['start']}-{json_obj[sch_type][day]['end']}\n"
+                    if day == "7":
+                        text += f"Воскресенье {json_obj[sch_type][day]['start']}-{json_obj[sch_type][day]['end']}\n"
+        return text
 
 
 def get_free_time_slots(free_time_list, duration):
@@ -213,11 +258,7 @@ def show_info(call: CallbackQuery):
             reply_markup=keyboard,
         )
     if call.data == "info_schedule":
-        if os.path.isfile(schedule_file):
-            with io.open(schedule_file, encoding="utf-8") as f:
-                schedule_text = f.read()
-            if len(schedule_text) < 2:
-                schedule_text = DEFAULT_SCHEDULE_TEXT
+        schedule_text = convert_schedule_json_to_text(schedule_file_json)
         keyboard.row(
             InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
             InlineKeyboardButton("Назад", callback_data="info_get"),
@@ -344,7 +385,7 @@ def calendar_online_single(call: CallbackQuery):
         day=day,
     )
     if action == "DAY":
-        with io.open("./schedule.json", "r", encoding="utf-8") as f:
+        with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
         available_time_dict = check_date(date, schedule, "online")
         if available_time_dict:
@@ -396,7 +437,7 @@ def calendar_offline_single(call: CallbackQuery):
         day=day,
     )
     if action == "DAY":
-        with io.open("./schedule.json", "r", encoding="utf-8") as f:
+        with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
         available_time_dict = check_date(date, schedule, "offline")
         if available_time_dict:
@@ -448,7 +489,7 @@ def calendar_online_dual(call: CallbackQuery):
         day=day,
     )
     if action == "DAY":
-        with io.open("./schedule.json", "r", encoding="utf-8") as f:
+        with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
         available_time_dict = check_date(date, schedule, "online")
         if available_time_dict:
@@ -500,7 +541,7 @@ def calendar_offline_dual(call: CallbackQuery):
         day=day,
     )
     if action == "DAY":
-        with io.open("./schedule.json", "r", encoding="utf-8") as f:
+        with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
         available_time_dict = check_date(date, schedule, "offline")
         if available_time_dict:

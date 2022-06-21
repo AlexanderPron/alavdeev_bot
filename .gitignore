@@ -1,4 +1,4 @@
-# Byte-compiled / optimized / DLL files
+﻿# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -166,3 +166,4 @@ sup*
 
 dev_settings.ini
 avd-bot-87f99ff81853.json
+test.py
