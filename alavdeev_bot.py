@@ -121,7 +121,8 @@ def get_free_time_slots(free_time_list, duration):
         else:
             count = int(free_minutes // duration)
             for i in range(count):
-                available_start_time_list.append((start + i * datetime.timedelta(minutes=duration)).isoformat())
+                # available_start_time_list.append((start + i * datetime.timedelta(minutes=duration)).isoformat())
+                available_start_time_list.append((start + i * datetime.timedelta(minutes=30)).isoformat())
     if available_start_time_list:
         return available_start_time_list
     else:
@@ -194,7 +195,7 @@ def check_date(date, schedule, appointment_type):
 
 @bot.message_handler(commands=["help"])
 def help_cmd(message):
-    bot.reply_to(message, "Тут будет описание команд и возможностей бота")
+    bot.send_message(message.chat.id, "Тут будет описание команд и возможностей бота")
 
 
 @bot.message_handler(commands=["start"])
@@ -216,9 +217,9 @@ def start_cmd(message):
     else:
         bot.send_message(
             message.chat.id,
-            f"Здравствуйте, <b>{message.from_user.first_name} {message.from_user.last_name}</b>! \
-Я бот-помощник психолога Алексея Авдеева. Для записи на консультацию напишите Ваше имя и фамилию. \
-Я добавлю Вашу запись в календарь Алексея.",
+            f"Здравствуйте, <b>{message.from_user.first_name} {message.from_user.last_name}</b>!\n\
+Я бот-помощник психолога Алексея Авдеева.\n\
+Для записи на консультацию выберите действие и следуйте инструкции, а я добавлю Вашу запись в календарь Алексея.",
             reply_markup=start_keyboard,
             parse_mode="html",
         )
@@ -258,7 +259,15 @@ def show_info(call: CallbackQuery):
             reply_markup=keyboard,
         )
     if call.data == "info_schedule":
-        schedule_text = convert_schedule_json_to_text(schedule_file_json)
+        schedule_text = "\n".join(
+            [
+                convert_schedule_json_to_text(schedule_file_json),
+                "Чтобы узнать ближайшие свободные для записи слоты, перейдите в раздел «Записаться»",
+            ]
+        )
+        keyboard.row(
+            InlineKeyboardButton("Записаться", callback_data="enroll_start_appointment"),
+        )
         keyboard.row(
             InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
             InlineKeyboardButton("Назад", callback_data="info_get"),
@@ -308,7 +317,8 @@ def set_enroll_type(message):
         )
         bot.send_message(
             chat_id=message.chat.id,
-            text="Вы хотите записаться на консультацию online или встретиться с врачом в очном формате?\n \
+            text="Вы хотите записаться на консультацию онлайн или встретиться с со мной очно?\n\n \
+Также хочу предупредить, что очный формат доступен только <b>по вторникам и четвергам с 15:30 до 22:00</b>\n\n \
 Длительность индивидуальных консультаций - <b>60 минут</b> \n \
 Длительность парных консультаций - <b>90 минут</b>",
             reply_markup=keyboard,
@@ -316,7 +326,9 @@ def set_enroll_type(message):
         )
         user_data_for_join[message.chat.id]["email"] = message.text
     else:
-        bot.send_message(message.chat.id, "Не корректный email!! Попробуйте ввести ещё раз! (example@mail.ru)")
+        bot.edit_message_text(
+            message.chat.id, message.message_id, "Некорректный email. Попробуйте ввести еще раз (example@mail.ru)"
+        )
         bot.register_next_step_handler(message, set_enroll_type)
 
 
@@ -341,7 +353,8 @@ def enroll_calendar_show(call: CallbackQuery):
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text="Выберите дату, когда Вам удобно было-бы провести очную индивидуальную консультацию",
+            text="Выберите дату, когда Вам удобно было-бы провести очную индивидуальную консультацию.\n \
+Напоминаю, что для очных доступны только вторники и четверги",
             reply_markup=cal.create_calendar(
                 name=calendar_offline_single_cb.prefix,
                 year=now.year,
@@ -363,7 +376,8 @@ def enroll_calendar_show(call: CallbackQuery):
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text="Выберите дату, когда Вам удобно было-бы провести очную индивидуальную консультацию",
+            text="Выберите дату, когда Вам удобно было-бы провести очную парную консультацию.\n \
+Напоминаю, что для очных доступны только вторники и четверги",
             reply_markup=cal.create_calendar(
                 name=calendar_offline_dual_cb.prefix,
                 year=now.year,
@@ -469,7 +483,8 @@ def calendar_offline_single(call: CallbackQuery):
             )
             bot.send_message(
                 call.message.chat.id,
-                "Извините, в этот день приёма нет. Выберите другой день",
+                "Извините, в этот день очного приема нет. Выберите вторник или четверг,\
+или попробуйте на следующей неделе",
                 reply_markup=keyboard,
             )
     elif action == "CANCEL":
@@ -573,7 +588,8 @@ def calendar_offline_dual(call: CallbackQuery):
             )
             bot.send_message(
                 call.message.chat.id,
-                "Извините, в этот день приёма нет. Выберите другой день",
+                "Извините, в этот день очного приема нет. Выберите вторник или четверг,\
+или попробуйте на следующей неделе",
                 reply_markup=keyboard,
             )
     elif action == "CANCEL":
