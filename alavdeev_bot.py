@@ -37,7 +37,7 @@ except Exception:
     print(f"Something wrong with {CURR_SETTINGS}")
     exit()
 SERVICE_ACCOUNT_FILE_PATH = os.path.join(BASE_DIR, "config", SERVICE_ACCOUNT_FILE)
-EVERYDAY_2_TIMES = "RRULE:FREQ=DAILY;COUNT=2"
+EVERYWEEK = ["RRULE:FREQ=WEEKLY;COUNT=4"]
 
 schedule_file_json = os.path.join(BASE_DIR, "data/schedule.json")
 # DEFAULT_SCHEDULE_TEXT = "<b>Режим работы уточняйте у врача</b>"
@@ -119,10 +119,12 @@ def get_free_time_slots(free_time_list, duration):
         if free_minutes < duration:
             continue
         else:
-            count = int(free_minutes // duration)
+            count = int(free_minutes // 30)
             for i in range(count):
-                # available_start_time_list.append((start + i * datetime.timedelta(minutes=duration)).isoformat())
-                available_start_time_list.append((start + i * datetime.timedelta(minutes=30)).isoformat())
+                if (end - (start + i * datetime.timedelta(minutes=30))) < datetime.timedelta(minutes=duration):
+                    continue
+                else:
+                    available_start_time_list.append((start + i * datetime.timedelta(minutes=30)).isoformat())
     if available_start_time_list:
         return available_start_time_list
     else:
@@ -145,7 +147,6 @@ def add_event(call, appointment_type, appointment_mode, appointment_day, appoint
         datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
         + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + duration)
     ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
-    msg_datetime = datetime.datetime.fromtimestamp(call.message.date)
     keyboard = InlineKeyboardMarkup()
     keyboard.row(InlineKeyboardButton("В начало", callback_data="info_appointment_START"))
     event = calendar.create_event_dict(
@@ -157,22 +158,32 @@ def add_event(call, appointment_type, appointment_mode, appointment_day, appoint
         start=ts,
         end=te,
         colorId=color,
-        recurrence=EVERYDAY_2_TIMES,
     )
-    calendar.create_event(event)
+    created_event = calendar.create_event(event)
+    return created_event
+
+
+def send_event_info(call, event):
+    appointment_day = event["start"]["dateTime"].split("T")[0]
+    time = event["start"]["dateTime"].split("T")[1][:5]
+    msg_datetime = datetime.datetime.fromtimestamp(call.message.date)
+    e_id = event.get("id")
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row(
+        InlineKeyboardButton("Да", callback_data=f"appointment_recurrence_yes::{e_id}"),
+        InlineKeyboardButton("Нет", callback_data="info_appointment_START"),
+    )
     bot.send_message(
         call.message.chat.id,
-        f"Вы успешно записались на консультацию {appointment_day} в {t.tm_hour}:{t.tm_min}",
+        f"Вы успешно записались на консультацию {appointment_day} в {time}\n\
+Хотите забронировать этот день и время на последующие недели?",
         reply_markup=keyboard,
     )
     bot.send_message(
         MANAGER_ID,
-        text=f"<b>{msg_datetime} У Вас новая запись на консультацию на \
-{appointment_day} в {t.tm_hour}:{t.tm_min}</b>\n \
-<b>telegram:</b> @{call.message.chat.username}\n \
-<b>Имя:</b> {user_data_for_join[call.message.chat.id]['name']}\n \
-<b>Фамилия:</b> {user_data_for_join[call.message.chat.id]['surname']}\n \
-<b>Email:</b> {user_data_for_join[call.message.chat.id]['email']}",
+        text=f"<b>{msg_datetime} У Вас новая запись на {event['summary']} на \
+{appointment_day} в {time}</b>\n\
+{event['description']}",
         parse_mode="html",
     )
 
@@ -511,23 +522,34 @@ def calendar_online_dual(call: CallbackQuery):
             free_time_list = calendar.get_free_daytime(date, available_time_dict["start"], available_time_dict["end"])
             free_slots = get_free_time_slots(free_time_list, 90)
             keyboard = InlineKeyboardMarkup()
-            for slot in free_slots:
-                hour = slot.split("T")[1].split(":")[0]
-                minutes = slot.split("T")[1].split(":")[1]
-                keyboard.add(
-                    InlineKeyboardButton(
-                        f"{hour}:{minutes}", callback_data=f"set_appointment::online_dual::{date}::{hour}:{minutes}"
+            if free_slots:
+                for slot in free_slots:
+                    hour = slot.split("T")[1].split(":")[0]
+                    minutes = slot.split("T")[1].split(":")[1]
+                    keyboard.add(
+                        InlineKeyboardButton(
+                            f"{hour}:{minutes}", callback_data=f"set_appointment::online_dual::{date}::{hour}:{minutes}"
+                        )
                     )
+                keyboard.row(
+                    InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+                    InlineKeyboardButton("Выбрать другую дату", callback_data="enroll_type_online_dual"),
                 )
-            keyboard.row(
-                InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
-                InlineKeyboardButton("Выбрать другую дату", callback_data="enroll_type_online_dual"),
-            )
-            bot.send_message(
-                call.message.chat.id,
-                "Выберите время, на которое вы бы хотели записаться",
-                reply_markup=keyboard,
-            )
+                bot.send_message(
+                    call.message.chat.id,
+                    "Выберите время, на которое вы бы хотели записаться",
+                    reply_markup=keyboard,
+                )
+            else:
+                keyboard.row(
+                    InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+                    InlineKeyboardButton("Выбрать другую дату", callback_data="enroll_type_online_dual"),
+                )
+                bot.send_message(
+                    call.message.chat.id,
+                    "Извините, в этот день свободного времени нет. Выберите другой день",
+                    reply_markup=keyboard,
+                )
         else:
             keyboard = InlineKeyboardMarkup()
             keyboard.row(
@@ -602,13 +624,33 @@ def set_appointment(call: CallbackQuery):
     appointment_day = call.data.split("::")[2].split()[0]
     appointment_time = call.data.split("::")[3]
     if appointment_type == "online_single":
-        add_event(call, "single", "online", appointment_day, appointment_time, user_data_for_join)
+        event = add_event(call, "single", "online", appointment_day, appointment_time, user_data_for_join)
+        send_event_info(call, event)
     if appointment_type == "offline_single":
-        add_event(call, "single", "offline", appointment_day, appointment_time, user_data_for_join)
+        event = add_event(call, "single", "offline", appointment_day, appointment_time, user_data_for_join)
+        send_event_info(call, event)
     if appointment_type == "online_dual":
-        add_event(call, "dual", "online", appointment_day, appointment_time, user_data_for_join)
+        event = add_event(call, "dual", "online", appointment_day, appointment_time, user_data_for_join)
+        send_event_info(call, event)
     if appointment_type == "offline_dual":
-        add_event(call, "dual", "offline", appointment_day, appointment_time, user_data_for_join)
+        event = add_event(call, "dual", "offline", appointment_day, appointment_time, user_data_for_join)
+        send_event_info(call, event)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("appointment_recurrence_yes::"))
+def appointment_recurrence_yes(call: CallbackQuery):
+    event_id = call.data.split("::")[1]
+    event = calendar.get_event(event_id)
+    event["recurrence"] = EVERYWEEK
+    ev = calendar.event_edit(event_id, event)
+    rec_ev = calendar.get_recurrence_events(event_id)
+    for item in rec_ev["items"][1:]:
+        item["status"] = "cancelled"
+    print("=========ev========")
+    print(ev)
+    print("=========rec_ev========")
+    print(rec_ev)
+    print("==========end===========")
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "edit_appointment")
