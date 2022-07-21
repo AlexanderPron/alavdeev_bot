@@ -8,6 +8,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import googleapiclient
 from google.oauth2 import service_account
+from copy import deepcopy
 
 
 class GoogleCalendar(object):
@@ -38,8 +39,33 @@ class GoogleCalendar(object):
 
     def create_event(self, event):
         e = self.service.events().insert(calendarId=self.calendarId, body=event).execute()
-        print("Event created: %s" % (e.get("id")))
+        # print("Event created: %s" % (e.get("id")))
         return e
+
+    def create_multiply_event(self, event, datetime_list=[]):
+        """Метод для добавления повторяющегося события по списку дат вида [{"start": "start_datetime", "end": "end_datetime"}].
+        Возвращает список успешно созданных событий.
+        Если дата и время уже заняты в календаре, то событие не добавляется"""
+
+        created_event_list = []
+        if datetime_list:
+            for dt in datetime_list:
+                day = datetime.datetime.strptime(dt["start"], "%Y-%m-%dT%H:%M:%S+03:00")
+                free_time_list = self.get_free_daytime(day.replace(hour=0, minute=0))
+                for free_time in free_time_list:
+                    if dt["start"] >= free_time["start"] and dt["end"] <= free_time["end"]:
+                        new_event = self.create_event_dict(
+                            event["summary"], event["description"], dt["start"], dt["end"], colorId=event["colorId"]
+                        )
+                        event_inst = self.create_event(new_event)
+                        created_event_list.append(event_inst)
+                        break
+                    else:
+                        continue
+        else:
+            created_event_list.append(self.create_event(event))
+
+        return created_event_list
 
     def get_user_events_list(self, tg_username):
         now = datetime.datetime.now().isoformat() + "+03:00"
@@ -86,12 +112,14 @@ class GoogleCalendar(object):
         Параметр time_start устанавливает начальное время (например, начало рабочего дня)
         Параметр time_end устанавливает конечное время (например, конец рабочего дня ).
         Если параметры time_start и time_end не заданы, то берутся полные сутки"""
+        # TODO Описать формат day
 
         empty_time_list = []
         t1 = time.strptime(time_start, "%H:%M")  # TODO Сделать проверку на коректность ввода времени try except
         t2 = time.strptime(time_end, "%H:%M")
         ts = (day + datetime.timedelta(hours=t1.tm_hour, minutes=t1.tm_min)).strftime("%Y-%m-%dT%H:%M:%S+03:00")
         te = (day + datetime.timedelta(hours=t2.tm_hour, minutes=t2.tm_min)).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        # print(f"{t1}\n{t2}\n{ts}\n{te}\n===========\n")
         query_body = {"timeMin": ts, "timeMax": te, "timeZone": "Europe/Moscow", "items": [{"id": self.calendarId}]}
         busy_info = self.service.freebusy().query(body=query_body).execute()
         busy_time_list = busy_info.get("calendars").get(self.calendarId).get("busy", [])
@@ -118,14 +146,3 @@ class GoogleCalendar(object):
 
     def get_recurrence_events(self, e_id):
         return self.service.events().instances(calendarId=self.calendarId, eventId=e_id).execute()
-
-    def check_time(self, event):
-        ts = "2022-07-18T00:30:00+03:00"  # event["start"]["dateTime"]
-        te = "2022-07-23T23:30:00+03:00"  # event["end"]["dateTime"]
-        query_body = {"timeMin": ts, "timeMax": te, "timeZone": "Europe/Moscow", "items": [{"id": self.calendarId}]}
-        busy_info = self.service.freebusy().query(body=query_body).execute()
-        print(f"busy_info --- {busy_info}")
-        if busy_info.get("calendars").get(self.calendarId).get("busy", []):
-            return False
-        else:
-            return True

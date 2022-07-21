@@ -37,10 +37,11 @@ except Exception:
     print(f"Something wrong with {CURR_SETTINGS}")
     exit()
 SERVICE_ACCOUNT_FILE_PATH = os.path.join(BASE_DIR, "config", SERVICE_ACCOUNT_FILE)
-EVERYWEEK = ["RRULE:FREQ=WEEKLY;COUNT=4"]
 
 schedule_file_json = os.path.join(BASE_DIR, "data/schedule.json")
-# DEFAULT_SCHEDULE_TEXT = "<b>Режим работы уточняйте у врача</b>"
+WRONG_CANCEL_TEXT = "<b>Консультацию нельзя отменить менее, чем за 24 часа</b>\n\
+Вы можете связаться с врачом лично и предупредить его об отмене консультации, но в \
+этом случае консультация считается проведенной"
 about_file = os.path.join(BASE_DIR, "data/about.txt")
 DEFAULT_ABOUT_TEXT = "<b>Алексей Авдеев. Психолог-консультант, семейный психолог</b>"
 user_data_for_join = {}
@@ -52,6 +53,7 @@ calendar_online_single_cb = CallbackData("enroll_calendar_online_single", "actio
 calendar_offline_single_cb = CallbackData("enroll_calendar_offline_single", "action", "year", "month", "day")
 calendar_online_dual_cb = CallbackData("enroll_calendar_online_dual", "action", "year", "month", "day")
 calendar_offline_dual_cb = CallbackData("enroll_calendar_offline_dual", "action", "year", "month", "day")
+move_enroll_calendar_cb = CallbackData("move_enroll", "action", "year", "month", "day")
 user_data_for_join = {}
 
 logger = telebot.logger
@@ -176,7 +178,7 @@ def send_event_info(call, event):
     bot.send_message(
         call.message.chat.id,
         f"Вы успешно записались на консультацию {appointment_day} в {time}\n\
-Хотите забронировать этот день и время на последующие недели?",
+Хотите забронировать этот день и время на последующие 3 недели?",
         reply_markup=keyboard,
     )
     bot.send_message(
@@ -202,6 +204,29 @@ def check_date(date, schedule, appointment_type):
     else:
         print("В json-расписании нет раздела online")  # TODO Сделать вывод  warning в лог файл
         return False
+
+
+def get_next_3_weeks_date(start_datetime, end_datetime):
+    """Функция получения списка начальных и конечных дат(со временем) события на следующие 3 недели"""
+    # TODO Переделать описание
+    lst = []
+    for i in range(1, 4):
+        dic = {
+            "start": (start_datetime + datetime.timedelta(days=i * 7)).strftime("%Y-%m-%dT%H:%M:%S+03:00"),
+            "end": (end_datetime + datetime.timedelta(days=i * 7)).strftime("%Y-%m-%dT%H:%M:%S+03:00"),
+        }
+        lst.append(dic)
+    return lst
+
+
+def check_24h(e_id):
+    """Функция проверки того, что событие произойдет не ранее чем через 24 часа.
+    e_id - id события в google-календаре.
+    Возвращает True если событие произойдет более, чем через 24 часа, иначе - False"""
+
+    event_inst = calendar.get_event(e_id)
+    event_dt = datetime.datetime.strptime(event_inst["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00")
+    return False if (event_dt - datetime.datetime.now()) <= datetime.timedelta(hours=24) else True
 
 
 @bot.message_handler(commands=["help"])
@@ -641,16 +666,13 @@ def set_appointment(call: CallbackQuery):
 def appointment_recurrence_yes(call: CallbackQuery):
     event_id = call.data.split("::")[1]
     event = calendar.get_event(event_id)
-    event["recurrence"] = EVERYWEEK
-    ev = calendar.event_edit(event_id, event)
-    rec_ev = calendar.get_recurrence_events(event_id)
-    for item in rec_ev["items"][1:]:
-        item["status"] = "cancelled"
-    print("=========ev========")
-    print(ev)
-    print("=========rec_ev========")
-    print(rec_ev)
-    print("==========end===========")
+    calendar.create_multiply_event(
+        event,
+        get_next_3_weeks_date(
+            datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00"),
+            datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00"),
+        ),
+    )
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "edit_appointment")
@@ -712,39 +734,74 @@ def event_detail(call: CallbackQuery):
 def event_cancel(call: CallbackQuery):
     keyboard = InlineKeyboardMarkup()
     e_id = call.data.split("::")[1]
-    calendar.delete_event(e_id)
-    keyboard.row(
-        InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
-        InlineKeyboardButton("Назад", callback_data="edit_appointment"),
-    )
-    bot.edit_message_text(
-        chat_id=call.message.chat.id,
-        message_id=call.message.message_id,
-        text="<b>Запись отменена</b>",
-        parse_mode="html",
-        reply_markup=keyboard,
-    )
+    if check_24h(e_id):
+        calendar.delete_event(e_id)
+        keyboard.row(
+            InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+            InlineKeyboardButton("Назад", callback_data="edit_appointment"),
+        )
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text="<b>Запись отменена</b>",
+            parse_mode="html",
+            reply_markup=keyboard,
+        )
+    else:
+        keyboard.row(
+            InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+            InlineKeyboardButton("Назад", callback_data="edit_appointment"),
+        )
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=WRONG_CANCEL_TEXT,
+            parse_mode="html",
+            reply_markup=keyboard,
+        )
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("event_edit::"))
-def event_edit(call: CallbackQuery):
-    keyboard = InlineKeyboardMarkup()
-    e_id = call.data.split("::")[1]
-    event = calendar.get_event(e_id)
-    event["start"]["dateTime"] = "2022-06-18T10:30:00+03:00"
-    event["end"]["dateTime"] = "2022-06-18T11:30:00+03:00"
-    calendar.event_edit(e_id, event)
-    keyboard.row(
-        InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
-        InlineKeyboardButton("Назад", callback_data="edit_appointment"),
-    )
-    bot.edit_message_text(
-        chat_id=call.message.chat.id,
-        message_id=call.message.message_id,
-        text="<b>Вы успешно перезаписались. ПОКА НЕ РЕАЛИЗОВАНО</b>",
-        parse_mode="html",
-        reply_markup=keyboard,
-    )
+# ================НАЧАЛО====================
+
+
+# def event_edit(call: CallbackQuery):
+#     keyboard = InlineKeyboardMarkup()
+#     e_id = call.data.split("::")[1]
+#     # event = calendar.get_event(e_id)
+#     # event["start"]["dateTime"] = "2022-06-18T10:30:00+03:00"
+#     # event["end"]["dateTime"] = "2022-06-18T11:30:00+03:00"
+#     # calendar.event_edit(e_id, event)
+#     # keyboard.row(
+#     #     InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+#     #     InlineKeyboardButton("Назад", callback_data="edit_appointment"),
+#     # )
+#     bot.edit_message_text(
+#         chat_id=call.message.chat.id,
+#         message_id=call.message.message_id,
+#         text="<b>Вы успешно перезаписались. ПОКА НЕ РЕАЛИЗОВАНО</b>",
+#         parse_mode="html",
+#         reply_markup=keyboard,
+#     )
+
+
+# @bot.callback_query_handler(func=lambda call: call.data.startswith("event_edit::"))
+# def move_enroll_calendar_show(call: CallbackQuery):
+#     now = datetime.datetime.now()
+#     e_id = call.data.split("::")[1]
+#     event = calendar.get_event(e_id)
+#     bot.edit_message_text(
+#         chat_id=call.message.chat.id,
+#         message_id=call.message.message_id,
+#         text="Выберите другую дату",
+#         reply_markup=cal.create_calendar(
+#             name=move_enroll_calendar_cb.prefix,
+#             year=now.year,
+#             month=now.month,
+#         ),
+#     )
+
+
+# =============КОНЕЦ=======================
 
 
 def main():
