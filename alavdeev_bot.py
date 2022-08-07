@@ -39,7 +39,7 @@ except Exception:
 SERVICE_ACCOUNT_FILE_PATH = os.path.join(BASE_DIR, "config", SERVICE_ACCOUNT_FILE)
 
 schedule_file_json = os.path.join(BASE_DIR, "data/schedule.json")
-WRONG_CANCEL_TEXT = "<b>Консультацию нельзя отменить менее, чем за 24 часа</b>\n\
+WRONG_CANCEL_TEXT = "<b>Консультацию нельзя отменить или перенести менее, чем за 24 часа</b>\n\
 Вы можете связаться с врачом лично и предупредить его об отмене консультации, но в \
 этом случае консультация считается проведенной"
 about_file = os.path.join(BASE_DIR, "data/about.txt")
@@ -53,8 +53,13 @@ calendar_online_single_cb = CallbackData("enroll_calendar_online_single", "actio
 calendar_offline_single_cb = CallbackData("enroll_calendar_offline_single", "action", "year", "month", "day")
 calendar_online_dual_cb = CallbackData("enroll_calendar_online_dual", "action", "year", "month", "day")
 calendar_offline_dual_cb = CallbackData("enroll_calendar_offline_dual", "action", "year", "month", "day")
-move_enroll_calendar_cb = CallbackData("move_enroll", "action", "year", "month", "day")
+# move_enroll_calendar_cb = CallbackData("move_enroll", "action", "year", "month", "day")
+move_enroll_online_single_cb = CallbackData("move_enroll_online_single", "action", "year", "month", "day")
+move_enroll_offline_single_cb = CallbackData("move_enroll_offline_single", "action", "year", "month", "day")
+move_enroll_online_dual_cb = CallbackData("move_enroll_online_dual", "action", "year", "month", "day")
+move_enroll_offline_dual_cb = CallbackData("move_enroll_offline_dual", "action", "year", "month", "day")
 user_data_for_join = {}
+global_event_id = {}
 
 logger = telebot.logger
 telebot.logger.setLevel(logging.WARNING)
@@ -133,6 +138,35 @@ def get_free_time_slots(free_time_list, duration):
         return False
 
 
+def get_event_type(event):
+    """Метод, который возвращает тип события(0,1,2,3 или 4): онлайн/очная/индивидуальная/парная
+    0 - событие, не созданное ботом,
+    1 - индивидуальная online консультация,
+    2 - парная online консультация,
+    3 - индивидуальная очная консультация,
+    4 - парная очная консультация
+    """
+
+    if event["summary"] == "Online консультация":
+        event_dt = datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00")
+        event_et = datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00")
+        duration_min = (event_et - event_dt).total_seconds() / 60
+        if duration_min == 60:
+            return 1  # индивидуальная online консультация
+        if duration_min == 90:
+            return 2  # парная online консультация
+    elif event["summary"] == "Очная консультация":
+        event_dt = datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00")
+        event_et = datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00")
+        duration_min = (event_et - event_dt).total_seconds() / 60
+        if duration_min == 60:
+            return 3  # индивидуальная очная консультация
+        if duration_min == 90:
+            return 4  # парная очная консультация
+    else:
+        return 0  # Событие, не созданное ботом
+
+
 def add_event(call, appointment_type, appointment_mode, appointment_day, appointment_time, user_data_for_join):
     duration = 60 if appointment_type == "single" else 90
     if appointment_mode == "online":
@@ -175,15 +209,69 @@ def send_event_info(call, event):
         InlineKeyboardButton("Да", callback_data=f"appointment_recurrence_yes::{e_id}"),
         InlineKeyboardButton("Нет", callback_data="info_appointment_START"),
     )
-    bot.send_message(
-        call.message.chat.id,
-        f"Вы успешно записались на консультацию {appointment_day} в {time}\n\
+    #     bot.send_message(
+    #         call.message.chat.id,
+    #         f"Вы успешно записались на консультацию {appointment_day} в {time}\n\
+    # Хотите забронировать этот день и время на последующие 3 недели?",
+    #         reply_markup=keyboard,
+    #     )
+    bot.edit_message_text(
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text=f"Вы успешно записались на консультацию {appointment_day} в {time}\n\
 Хотите забронировать этот день и время на последующие 3 недели?",
+        parse_mode="html",
         reply_markup=keyboard,
     )
     bot.send_message(
         MANAGER_ID,
         text=f"<b>{msg_datetime} У Вас новая запись на {event['summary']} на \
+{appointment_day} в {time}</b>\n\
+{event['description']}",
+        parse_mode="html",
+    )
+
+
+def send_move_event_info(call, event):
+    appointment_day = event["start"]["dateTime"].split("T")[0]
+    time = event["start"]["dateTime"].split("T")[1][:5]
+    msg_datetime = datetime.datetime.fromtimestamp(call.message.date)
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row(
+        InlineKeyboardButton("Назад", callback_data="info_appointment_START"),
+    )
+    # bot.send_message(
+    #     call.message.chat.id,
+    #     f"Вы успешно записались на консультацию {appointment_day} в {time}",
+    #     reply_markup=keyboard,
+    # )
+    bot.edit_message_text(
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text=f"Вы успешно записались на консультацию {appointment_day} в {time}",
+        parse_mode="html",
+        reply_markup=keyboard,
+    )
+    bot.send_message(
+        MANAGER_ID,
+        text=f"<b>{msg_datetime} Перенос записи {event['summary']} на \
+{appointment_day} в {time}</b>\n\
+{event['description']}",
+        parse_mode="html",
+    )
+
+
+def send_cancel_event_info(call, event):
+    appointment_day = event["start"]["dateTime"].split("T")[0]
+    time = event["start"]["dateTime"].split("T")[1][:5]
+    msg_datetime = datetime.datetime.fromtimestamp(call.message.date)
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row(
+        InlineKeyboardButton("Назад", callback_data="info_appointment_START"),
+    )
+    bot.send_message(
+        MANAGER_ID,
+        text=f"<b>{msg_datetime} Отмена записи {event['summary']} на \
 {appointment_day} в {time}</b>\n\
 {event['description']}",
         parse_mode="html",
@@ -245,9 +333,11 @@ def start_cmd(message):
         InlineKeyboardButton("Редактировать запись", callback_data="edit_appointment"),
     )
     if message.from_user.is_bot:
-        bot.send_message(
-            message.chat.id,
-            "Выберите действие",
+        bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=message.message_id,
+            text="Выберите действие",
+            parse_mode="html",
             reply_markup=start_keyboard,
         )
     else:
@@ -324,7 +414,13 @@ def show_info(call: CallbackQuery):
 def set_name(call: CallbackQuery):
     global user_data_for_join
     user_data_for_join[call.message.chat.id] = {}
-    msg_instance = bot.send_message(call.message.chat.id, "Укажите Ваше имя")
+    # msg_instance = bot.send_message(call.message.chat.id, "Укажите Ваше имя")
+    msg_instance = bot.edit_message_text(
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text="Укажите Ваше имя",
+        parse_mode="html",
+    )
     bot.register_next_step_handler(msg_instance, set_surname)
 
 
@@ -362,8 +458,9 @@ def set_enroll_type(message):
         )
         user_data_for_join[message.chat.id]["email"] = message.text
     else:
-        bot.edit_message_text(
-            message.chat.id, message.message_id, "Некорректный email. Попробуйте ввести еще раз (example@mail.ru)"
+        bot.send_message(
+            message.chat.id,
+            "Некорректный email. Попробуйте ввести еще раз (example@mail.ru)",
         )
         bot.register_next_step_handler(message, set_enroll_type)
 
@@ -470,6 +567,12 @@ def calendar_online_single(call: CallbackQuery):
                 "Извините, в этот день приёма нет. Выберите другой день",
                 reply_markup=keyboard,
             )
+            # bot.edit_message_text(
+            #     chat_id=call.message.chat.id,
+            #     message_id=call.message.message_id,
+            #     text="Извините, в этот день приёма нет. Выберите другой день",
+            #     reply_markup=keyboard,
+            # )
     elif action == "CANCEL":
         start_cmd(call.message)
 
@@ -511,6 +614,12 @@ def calendar_offline_single(call: CallbackQuery):
                 "Выберите время, на которое вы бы хотели записаться",
                 reply_markup=keyboard,
             )
+            # bot.edit_message_text(
+            #     chat_id=call.message.chat.id,
+            #     message_id=call.message.message_id,
+            #     text="Выберите время, на которое вы бы хотели записаться",
+            #     reply_markup=keyboard,
+            # )
         else:
             keyboard = InlineKeyboardMarkup()
             keyboard.row(
@@ -523,6 +632,13 @@ def calendar_offline_single(call: CallbackQuery):
 или попробуйте на следующей неделе",
                 reply_markup=keyboard,
             )
+    #             bot.edit_message_text(
+    #                 chat_id=call.message.chat.id,
+    #                 message_id=call.message.message_id,
+    #                 text="Извините, в этот день очного приема нет. Выберите вторник или четверг,\
+    #  или попробуйте на следующей неделе",
+    #                 reply_markup=keyboard,
+    #             )
     elif action == "CANCEL":
         start_cmd(call.message)
 
@@ -565,6 +681,12 @@ def calendar_online_dual(call: CallbackQuery):
                     "Выберите время, на которое вы бы хотели записаться",
                     reply_markup=keyboard,
                 )
+                # bot.edit_message_text(
+                #     chat_id=call.message.chat.id,
+                #     message_id=call.message.message_id,
+                #     text="Выберите время, на которое вы бы хотели записаться",
+                #     reply_markup=keyboard,
+                # )
             else:
                 keyboard.row(
                     InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
@@ -575,6 +697,12 @@ def calendar_online_dual(call: CallbackQuery):
                     "Извините, в этот день свободного времени нет. Выберите другой день",
                     reply_markup=keyboard,
                 )
+                # bot.edit_message_text(
+                #     chat_id=call.message.chat.id,
+                #     message_id=call.message.message_id,
+                #     text="Извините, в этот день свободного времени нет. Выберите другой день",
+                #     reply_markup=keyboard,
+                # )
         else:
             keyboard = InlineKeyboardMarkup()
             keyboard.row(
@@ -586,6 +714,12 @@ def calendar_online_dual(call: CallbackQuery):
                 "Извините, в этот день приёма нет. Выберите другой день",
                 reply_markup=keyboard,
             )
+            # bot.edit_message_text(
+            #     chat_id=call.message.chat.id,
+            #     message_id=call.message.message_id,
+            #     text="Извините, в этот день приёма нет. Выберите другой день",
+            #     reply_markup=keyboard,
+            # )
     elif action == "CANCEL":
         start_cmd(call.message)
 
@@ -627,6 +761,12 @@ def calendar_offline_dual(call: CallbackQuery):
                 "Выберите время, на которое вы бы хотели записаться",
                 reply_markup=keyboard,
             )
+            # bot.edit_message_text(
+            #     chat_id=call.message.chat.id,
+            #     message_id=call.message.message_id,
+            #     text="Выберите время, на которое вы бы хотели записаться",
+            #     reply_markup=keyboard,
+            # )
         else:
             keyboard = InlineKeyboardMarkup()
             keyboard.row(
@@ -639,6 +779,13 @@ def calendar_offline_dual(call: CallbackQuery):
 или попробуйте на следующей неделе",
                 reply_markup=keyboard,
             )
+    #             bot.edit_message_text(
+    #                 chat_id=call.message.chat.id,
+    #                 message_id=call.message.message_id,
+    #                 text="Извините, в этот день очного приема нет. Выберите вторник или четверг,\
+    #  или попробуйте на следующей неделе",
+    #                 reply_markup=keyboard,
+    #             )
     elif action == "CANCEL":
         start_cmd(call.message)
 
@@ -666,12 +813,47 @@ def set_appointment(call: CallbackQuery):
 def appointment_recurrence_yes(call: CallbackQuery):
     event_id = call.data.split("::")[1]
     event = calendar.get_event(event_id)
-    calendar.create_multiply_event(
+    appointment_day = event["start"]["dateTime"].split("T")[0]
+    time = event["start"]["dateTime"].split("T")[1][:5]
+    msg_datetime = datetime.datetime.fromtimestamp(call.message.date)
+    created_events_list = calendar.create_multiply_event(
         event,
         get_next_3_weeks_date(
             datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00"),
             datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00"),
         ),
+    )
+    i = 0
+    # events_info = f"{i}) {appointment_day} в {time}\n"
+    events_info = ""
+    for created_event in created_events_list:
+        i += 1
+        appointment_day = created_event["start"]["dateTime"].split("T")[0]
+        time = created_event["start"]["dateTime"].split("T")[1][:5]
+        events_info += f"{i}) {appointment_day} в {time}\n"
+
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row(
+        InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+    )
+    # bot.edit_message_text(
+    #     chat_id=call.message.chat.id,
+    #     message_id=call.message.message_id,
+    #     text=f"Вы успешно записались на консультации:\n{events_info}",
+    #     parse_mode="html",
+    #     reply_markup=keyboard,
+    # )
+    bot.send_message(
+        chat_id=call.message.chat.id,
+        text=f"Вы успешно записались на консультации:\n{events_info}",
+        parse_mode="html",
+        reply_markup=keyboard,
+    )
+    bot.send_message(
+        MANAGER_ID,
+        text=f"<b>{msg_datetime} У Вас новые записи на {event['summary']}:</b>\n{events_info}\n\
+<b>Описание:</b>\n{event['description']}",
+        parse_mode="html",
     )
 
 
@@ -698,9 +880,15 @@ def edit_appointment(call: CallbackQuery):
             InlineKeyboardButton("Записаться", callback_data="enroll_start_appointment"),
             InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
         )
-        bot.send_message(
-            call.message.chat.id,
-            "У Вас нет ни одной записи",
+        # bot.send_message(
+        #     call.message.chat.id,
+        #     "У Вас нет ни одной записи",
+        #     reply_markup=keyboard,
+        # )
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text="У Вас нет ни одной записи",
             reply_markup=keyboard,
         )
 
@@ -734,6 +922,7 @@ def event_detail(call: CallbackQuery):
 def event_cancel(call: CallbackQuery):
     keyboard = InlineKeyboardMarkup()
     e_id = call.data.split("::")[1]
+    event = calendar.get_event(e_id)
     if check_24h(e_id):
         calendar.delete_event(e_id)
         keyboard.row(
@@ -747,6 +936,7 @@ def event_cancel(call: CallbackQuery):
             parse_mode="html",
             reply_markup=keyboard,
         )
+        send_cancel_event_info(call, event)
     else:
         keyboard.row(
             InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
@@ -761,47 +951,443 @@ def event_cancel(call: CallbackQuery):
         )
 
 
-# ================НАЧАЛО====================
+# ================НАЧАЛО блока переноса записи====================
 
 
-# def event_edit(call: CallbackQuery):
-#     keyboard = InlineKeyboardMarkup()
-#     e_id = call.data.split("::")[1]
-#     # event = calendar.get_event(e_id)
-#     # event["start"]["dateTime"] = "2022-06-18T10:30:00+03:00"
-#     # event["end"]["dateTime"] = "2022-06-18T11:30:00+03:00"
-#     # calendar.event_edit(e_id, event)
-#     # keyboard.row(
-#     #     InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
-#     #     InlineKeyboardButton("Назад", callback_data="edit_appointment"),
-#     # )
-#     bot.edit_message_text(
-#         chat_id=call.message.chat.id,
-#         message_id=call.message.message_id,
-#         text="<b>Вы успешно перезаписались. ПОКА НЕ РЕАЛИЗОВАНО</b>",
-#         parse_mode="html",
-#         reply_markup=keyboard,
-#     )
+@bot.callback_query_handler(func=lambda call: call.data.startswith("event_edit::"))
+def move_enroll_calendar_show(call: CallbackQuery):
+    now = datetime.datetime.now()
+    e_id = call.data.split("::")[1]
+    if check_24h(e_id):
+        global global_event_id
+        global_event_id[call.message.chat.id] = e_id
+        event = calendar.get_event(e_id)
+        event_type = get_event_type(event)
+        if event_type == 1:
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="Выберите новую дату, когда Вам удобно было-бы провести индивидуальную online консультацию",
+                reply_markup=cal.create_calendar(
+                    name=move_enroll_online_single_cb.prefix,
+                    year=now.year,
+                    month=now.month,
+                ),
+            )
+        if event_type == 3:
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="Выберите дату, когда Вам удобно было-бы провести очную индивидуальную консультацию.\n \
+Напоминаю, что для очных доступны только вторники и четверги",
+                reply_markup=cal.create_calendar(
+                    name=move_enroll_offline_single_cb.prefix,
+                    year=now.year,
+                    month=now.month,
+                ),
+            )
+        if event_type == 2:
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="Выберите дату, когда Вам удобно было-бы провести парную online консультацию",
+                reply_markup=cal.create_calendar(
+                    name=move_enroll_online_dual_cb.prefix,
+                    year=now.year,
+                    month=now.month,
+                ),
+            )
+        if event_type == 4:
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="Выберите дату, когда Вам удобно было-бы провести очную парную консультацию.\n \
+Напоминаю, что для очных доступны только вторники и четверги",
+                reply_markup=cal.create_calendar(
+                    name=move_enroll_offline_dual_cb.prefix,
+                    year=now.year,
+                    month=now.month,
+                ),
+            )
+    else:
+        keyboard = InlineKeyboardMarkup()
+        keyboard.row(
+            InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+            InlineKeyboardButton("Назад", callback_data="edit_appointment"),
+        )
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=WRONG_CANCEL_TEXT,
+            parse_mode="html",
+            reply_markup=keyboard,
+        )
 
 
-# @bot.callback_query_handler(func=lambda call: call.data.startswith("event_edit::"))
-# def move_enroll_calendar_show(call: CallbackQuery):
-#     now = datetime.datetime.now()
-#     e_id = call.data.split("::")[1]
-#     event = calendar.get_event(e_id)
-#     bot.edit_message_text(
-#         chat_id=call.message.chat.id,
-#         message_id=call.message.message_id,
-#         text="Выберите другую дату",
-#         reply_markup=cal.create_calendar(
-#             name=move_enroll_calendar_cb.prefix,
-#             year=now.year,
-#             month=now.month,
-#         ),
-#     )
+@bot.callback_query_handler(func=lambda call: call.data.startswith(move_enroll_online_single_cb.prefix))
+def move_enroll_online_single(call: CallbackQuery):
+    name, action, year, month, day = call.data.split(move_enroll_online_single_cb.sep)
+    date = cal.calendar_query_handler(
+        bot=bot,
+        call=call,
+        name=name,
+        action=action,
+        year=year,
+        month=month,
+        day=day,
+    )
+    if action == "DAY":
+        with io.open(schedule_file_json, "r", encoding="utf-8") as f:
+            schedule = f.read()
+        available_time_dict = check_date(date, schedule, "online")
+        if available_time_dict:
+            free_time_list = calendar.get_free_daytime(date, available_time_dict["start"], available_time_dict["end"])
+            free_slots = get_free_time_slots(free_time_list, 60)
+            keyboard = InlineKeyboardMarkup()
+            for slot in free_slots:
+                hour = slot.split("T")[1].split(":")[0]
+                minutes = slot.split("T")[1].split(":")[1]
+                keyboard.add(
+                    InlineKeyboardButton(
+                        f"{hour}:{minutes}", callback_data=f"move_appointment::online_single::{date}::{hour}:{minutes}"
+                    )
+                )
+            keyboard.row(
+                InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+                InlineKeyboardButton(
+                    "Выбрать другую дату", callback_data=f"event_edit::{global_event_id[call.message.chat.id]}"
+                ),
+            )
+            bot.send_message(
+                call.message.chat.id,
+                "Выберите время, на которое вы бы хотели записаться",
+                reply_markup=keyboard,
+            )
+            # bot.edit_message_text(
+            #     chat_id=call.message.chat.id,
+            #     message_id=call.message.message_id,
+            #     text="Выберите время, на которое вы бы хотели записаться",
+            #     reply_markup=keyboard,
+            # )
+        else:
+            keyboard = InlineKeyboardMarkup()
+            keyboard.row(
+                InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+                InlineKeyboardButton(
+                    "Выбрать другую дату", callback_data=f"event_edit::{global_event_id[call.message.chat.id]}"
+                ),
+            )
+            bot.send_message(
+                call.message.chat.id,
+                "Извините, в этот день приёма нет. Выберите другой день",
+                reply_markup=keyboard,
+            )
+            # bot.edit_message_text(
+            #     chat_id=call.message.chat.id,
+            #     message_id=call.message.message_id,
+            #     text="Извините, в этот день приёма нет. Выберите другой день",
+            #     reply_markup=keyboard,
+            # )
+    elif action == "CANCEL":
+        start_cmd(call.message)
 
 
-# =============КОНЕЦ=======================
+@bot.callback_query_handler(func=lambda call: call.data.startswith(move_enroll_offline_single_cb.prefix))
+def move_enroll_offline_single(call: CallbackQuery):
+    name, action, year, month, day = call.data.split(move_enroll_offline_single_cb.sep)
+    date = cal.calendar_query_handler(
+        bot=bot,
+        call=call,
+        name=name,
+        action=action,
+        year=year,
+        month=month,
+        day=day,
+    )
+    if action == "DAY":
+        with io.open(schedule_file_json, "r", encoding="utf-8") as f:
+            schedule = f.read()
+        available_time_dict = check_date(date, schedule, "offline")
+        if available_time_dict:
+            free_time_list = calendar.get_free_daytime(date, available_time_dict["start"], available_time_dict["end"])
+            free_slots = get_free_time_slots(free_time_list, 60)
+            keyboard = InlineKeyboardMarkup()
+            for slot in free_slots:
+                hour = slot.split("T")[1].split(":")[0]
+                minutes = slot.split("T")[1].split(":")[1]
+                keyboard.add(
+                    InlineKeyboardButton(
+                        f"{hour}:{minutes}", callback_data=f"move_appointment::offline_single::{date}::{hour}:{minutes}"
+                    )
+                )
+            keyboard.row(
+                InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+                InlineKeyboardButton(
+                    "Выбрать другую дату", callback_data=f"event_edit::{global_event_id[call.message.chat.id]}"
+                ),
+            )
+            bot.send_message(
+                call.message.chat.id,
+                "Выберите время, на которое вы бы хотели записаться",
+                reply_markup=keyboard,
+            )
+            # bot.edit_message_text(
+            #     chat_id=call.message.chat.id,
+            #     message_id=call.message.message_id,
+            #     text="Выберите время, на которое вы бы хотели записаться",
+            #     reply_markup=keyboard,
+            # )
+        else:
+            keyboard = InlineKeyboardMarkup()
+            keyboard.row(
+                InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+                InlineKeyboardButton(
+                    "Выбрать другую дату", callback_data=f"event_edit::{global_event_id[call.message.chat.id]}"
+                ),
+            )
+            bot.send_message(
+                call.message.chat.id,
+                "Извините, в этот день очного приема нет. Выберите вторник или четверг,\
+или попробуйте на следующей неделе",
+                reply_markup=keyboard,
+            )
+    #             bot.edit_message_text(
+    #                 chat_id=call.message.chat.id,
+    #                 message_id=call.message.message_id,
+    #                 text="Извините, в этот день очного приема нет. Выберите вторник или четверг,\
+    #  или попробуйте на следующей неделе",
+    #                 reply_markup=keyboard,
+    #             )
+    elif action == "CANCEL":
+        start_cmd(call.message)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith(move_enroll_online_dual_cb.prefix))
+def move_enroll_online_dual(call: CallbackQuery):
+    name, action, year, month, day = call.data.split(move_enroll_online_dual_cb.sep)
+    date = cal.calendar_query_handler(
+        bot=bot,
+        call=call,
+        name=name,
+        action=action,
+        year=year,
+        month=month,
+        day=day,
+    )
+    if action == "DAY":
+        with io.open(schedule_file_json, "r", encoding="utf-8") as f:
+            schedule = f.read()
+        available_time_dict = check_date(date, schedule, "online")
+        if available_time_dict:
+            free_time_list = calendar.get_free_daytime(date, available_time_dict["start"], available_time_dict["end"])
+            free_slots = get_free_time_slots(free_time_list, 90)
+            keyboard = InlineKeyboardMarkup()
+            if free_slots:
+                for slot in free_slots:
+                    hour = slot.split("T")[1].split(":")[0]
+                    minutes = slot.split("T")[1].split(":")[1]
+                    keyboard.add(
+                        InlineKeyboardButton(
+                            f"{hour}:{minutes}",
+                            callback_data=f"move_appointment::online_dual::{date}::{hour}:{minutes}",
+                        )
+                    )
+                keyboard.row(
+                    InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+                    InlineKeyboardButton(
+                        "Выбрать другую дату", callback_data=f"event_edit::{global_event_id[call.message.chat.id]}"
+                    ),
+                )
+                bot.send_message(
+                    call.message.chat.id,
+                    "Выберите время, на которое вы бы хотели записаться",
+                    reply_markup=keyboard,
+                )
+                # bot.edit_message_text(
+                #     chat_id=call.message.chat.id,
+                #     message_id=call.message.message_id,
+                #     text="Выберите время, на которое вы бы хотели записаться",
+                #     reply_markup=keyboard,
+                # )
+            else:
+                keyboard.row(
+                    InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+                    InlineKeyboardButton(
+                        "Выбрать другую дату", callback_data=f"event_edit::{global_event_id[call.message.chat.id]}"
+                    ),
+                )
+                bot.send_message(
+                    call.message.chat.id,
+                    "Извините, в этот день свободного времени нет. Выберите другой день",
+                    reply_markup=keyboard,
+                )
+                # bot.edit_message_text(
+                #     chat_id=call.message.chat.id,
+                #     message_id=call.message.message_id,
+                #     text="Извините, в этот день свободного времени нет. Выберите другой день",
+                #     reply_markup=keyboard,
+                # )
+        else:
+            keyboard = InlineKeyboardMarkup()
+            keyboard.row(
+                InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+                InlineKeyboardButton(
+                    "Выбрать другую дату", callback_data=f"event_edit::{global_event_id[call.message.chat.id]}"
+                ),
+            )
+            bot.send_message(
+                call.message.chat.id,
+                "Извините, в этот день приёма нет. Выберите другой день",
+                reply_markup=keyboard,
+            )
+            # bot.edit_message_text(
+            #     chat_id=call.message.chat.id,
+            #     message_id=call.message.message_id,
+            #     text="Извините, в этот день приёма нет. Выберите другой день",
+            #     reply_markup=keyboard,
+            # )
+    elif action == "CANCEL":
+        start_cmd(call.message)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith(move_enroll_offline_dual_cb.prefix))
+def move_enroll_offline_dual(call: CallbackQuery):
+    name, action, year, month, day = call.data.split(move_enroll_offline_dual_cb.sep)
+    date = cal.calendar_query_handler(
+        bot=bot,
+        call=call,
+        name=name,
+        action=action,
+        year=year,
+        month=month,
+        day=day,
+    )
+    if action == "DAY":
+        with io.open(schedule_file_json, "r", encoding="utf-8") as f:
+            schedule = f.read()
+        available_time_dict = check_date(date, schedule, "offline")
+        if available_time_dict:
+            free_time_list = calendar.get_free_daytime(date, available_time_dict["start"], available_time_dict["end"])
+            free_slots = get_free_time_slots(free_time_list, 90)
+            keyboard = InlineKeyboardMarkup()
+            for slot in free_slots:
+                hour = slot.split("T")[1].split(":")[0]
+                minutes = slot.split("T")[1].split(":")[1]
+                keyboard.add(
+                    InlineKeyboardButton(
+                        f"{hour}:{minutes}", callback_data=f"move_appointment::offline_dual::{date}::{hour}:{minutes}"
+                    )
+                )
+            keyboard.row(
+                InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+                InlineKeyboardButton(
+                    "Выбрать другую дату", callback_data=f"event_edit::{global_event_id[call.message.chat.id]}"
+                ),
+            )
+            bot.send_message(
+                call.message.chat.id,
+                "Выберите время, на которое вы бы хотели записаться",
+                reply_markup=keyboard,
+            )
+            # bot.edit_message_text(
+            #     chat_id=call.message.chat.id,
+            #     message_id=call.message.message_id,
+            #     text="Выберите время, на которое вы бы хотели записаться",
+            #     reply_markup=keyboard,
+            # )
+        else:
+            keyboard = InlineKeyboardMarkup()
+            keyboard.row(
+                InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+                InlineKeyboardButton(
+                    "Выбрать другую дату", callback_data=f"event_edit::{global_event_id[call.message.chat.id]}"
+                ),
+            )
+            bot.send_message(
+                call.message.chat.id,
+                "Извините, в этот день очного приема нет. Выберите вторник или четверг,\
+или попробуйте на следующей неделе",
+                reply_markup=keyboard,
+            )
+    #             bot.edit_message_text(
+    #                 chat_id=call.message.chat.id,
+    #                 message_id=call.message.message_id,
+    #                 text="Извините, в этот день очного приема нет. Выберите вторник или четверг,\
+    #  или попробуйте на следующей неделе",
+    #                 reply_markup=keyboard,
+    #             )
+    elif action == "CANCEL":
+        start_cmd(call.message)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("move_appointment"))
+def move_appointment(call: CallbackQuery):
+    appointment_type = call.data.split("::")[1]
+    appointment_day = call.data.split("::")[2].split()[0]
+    appointment_time = call.data.split("::")[3]
+    if appointment_type == "online_single":
+        event = calendar.get_event(global_event_id[call.message.chat.id])
+        t = time.strptime(appointment_time, "%H:%M")
+        ts = (
+            datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
+            + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
+        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        te = (
+            datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
+            + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + 60)
+        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        event["start"]["dateTime"] = ts
+        event["end"]["dateTime"] = te
+        calendar.event_edit(global_event_id[call.message.chat.id], event)
+        send_move_event_info(call, event)
+    if appointment_type == "offline_single":
+        event = calendar.get_event(global_event_id[call.message.chat.id])
+        t = time.strptime(appointment_time, "%H:%M")
+        ts = (
+            datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
+            + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
+        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        te = (
+            datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
+            + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + 60)
+        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        event["start"]["dateTime"] = ts
+        event["end"]["dateTime"] = te
+        calendar.event_edit(global_event_id[call.message.chat.id], event)
+        send_move_event_info(call, event)
+    if appointment_type == "online_dual":
+        event = calendar.get_event(global_event_id[call.message.chat.id])
+        t = time.strptime(appointment_time, "%H:%M")
+        ts = (
+            datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
+            + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
+        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        te = (
+            datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
+            + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + 90)
+        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        event["start"]["dateTime"] = ts
+        event["end"]["dateTime"] = te
+        calendar.event_edit(global_event_id[call.message.chat.id], event)
+        send_move_event_info(call, event)
+    if appointment_type == "offline_dual":
+        event = calendar.get_event(global_event_id[call.message.chat.id])
+        t = time.strptime(appointment_time, "%H:%M")
+        ts = (
+            datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
+            + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
+        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        te = (
+            datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
+            + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + 90)
+        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        event["start"]["dateTime"] = ts
+        event["end"]["dateTime"] = te
+        calendar.event_edit(global_event_id[call.message.chat.id], event)
+        send_move_event_info(call, event)
+
+
+# =============КОНЕЦ блока переноса записи=======================
 
 
 def main():

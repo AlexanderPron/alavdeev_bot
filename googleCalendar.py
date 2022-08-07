@@ -8,7 +8,6 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import googleapiclient
 from google.oauth2 import service_account
-from copy import deepcopy
 
 
 class GoogleCalendar(object):
