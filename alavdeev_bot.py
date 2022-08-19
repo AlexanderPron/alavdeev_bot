@@ -1,4 +1,5 @@
 import telebot
+from telebot.apihelper import ApiTelegramException
 from telebot_calendar import Calendar, RUSSIAN_LANGUAGE, CallbackData
 from telebot.types import (
     ReplyKeyboardRemove,
@@ -44,7 +45,6 @@ WRONG_CANCEL_TEXT = "<b>Консультацию нельзя отменить �
 этом случае консультация считается проведенной"
 about_file = os.path.join(BASE_DIR, "data/about.txt")
 DEFAULT_ABOUT_TEXT = "<b>Алексей Авдеев. Психолог-консультант, семейный психолог</b>"
-user_data_for_join = {}
 
 bot = telebot.TeleBot(TOKEN, parse_mode=None)
 cal = Calendar(language=RUSSIAN_LANGUAGE)
@@ -189,8 +189,7 @@ def add_event(call, appointment_type, appointment_mode, appointment_day, appoint
         summary=appointment_summary,
         description=f"<b>telegram:</b> @{call.message.chat.username}\n\
 <b>Имя:</b> {user_data_for_join[call.message.chat.id]['name']}\n\
-<b>Фамилия:</b> {user_data_for_join[call.message.chat.id]['surname']}\n\
-<b>Email:</b> {user_data_for_join[call.message.chat.id]['email']}",
+<b>Фамилия:</b> {user_data_for_join[call.message.chat.id]['surname']}",
         start=ts,
         end=te,
         colorId=color,
@@ -206,7 +205,12 @@ def send_event_info(call, event):
     e_id = event.get("id")
     keyboard = InlineKeyboardMarkup()
     keyboard.row(
-        InlineKeyboardButton("Да", callback_data=f"appointment_recurrence_yes::{e_id}"),
+        InlineKeyboardButton("Да, один раз в неделю", callback_data=f"recurrence_yes_everyweek::{e_id}"),
+        InlineKeyboardButton(
+            "Да, один раз в две недели", callback_data=f"recurrence_yes_onetime2week::{e_id}"
+        ),
+    )
+    keyboard.row(
         InlineKeyboardButton("Нет", callback_data="info_appointment_START"),
     )
     #     bot.send_message(
@@ -219,7 +223,7 @@ def send_event_info(call, event):
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
         text=f"Вы успешно записались на консультацию {appointment_day} в {time}\n\
-Хотите забронировать этот день и время на последующие 3 недели?",
+Хотите записаться в это время ещё на 3 консультации?",
         parse_mode="html",
         reply_markup=keyboard,
     )
@@ -295,13 +299,26 @@ def check_date(date, schedule, appointment_type):
 
 
 def get_next_3_weeks_date(start_datetime, end_datetime):
-    """Функция получения списка начальных и конечных дат(со временем) события на следующие 3 недели"""
-    # TODO Переделать описание
+    """Функция получения списка из 3 начальных и конечных дат(со временем) события на следующие 3 недели"""
+
     lst = []
     for i in range(1, 4):
         dic = {
             "start": (start_datetime + datetime.timedelta(days=i * 7)).strftime("%Y-%m-%dT%H:%M:%S+03:00"),
             "end": (end_datetime + datetime.timedelta(days=i * 7)).strftime("%Y-%m-%dT%H:%M:%S+03:00"),
+        }
+        lst.append(dic)
+    return lst
+
+
+def get_onetime2week_date(start_datetime, end_datetime):
+    """Функция получения списка из 3 начальных и конечных дат(со временем) события один раз в две недели"""
+
+    lst = []
+    for i in range(1, 4):
+        dic = {
+            "start": (start_datetime + datetime.timedelta(days=i * 14)).strftime("%Y-%m-%dT%H:%M:%S+03:00"),
+            "end": (end_datetime + datetime.timedelta(days=i * 14)).strftime("%Y-%m-%dT%H:%M:%S+03:00"),
         }
         lst.append(dic)
     return lst
@@ -333,13 +350,21 @@ def start_cmd(message):
         InlineKeyboardButton("Редактировать запись", callback_data="edit_appointment"),
     )
     if message.from_user.is_bot:
-        bot.edit_message_text(
-            chat_id=message.chat.id,
-            message_id=message.message_id,
-            text="Выберите действие",
-            parse_mode="html",
-            reply_markup=start_keyboard,
-        )
+        try:
+            bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=message.message_id,
+                text="Выберите действие",
+                parse_mode="html",
+                reply_markup=start_keyboard,
+            )
+        except ApiTelegramException:
+            bot.send_message(
+                chat_id=message.chat.id,
+                text="Выберите действие",
+                parse_mode="html",
+                reply_markup=start_keyboard,
+            )
     else:
         bot.send_message(
             message.chat.id,
@@ -427,42 +452,43 @@ def set_name(call: CallbackQuery):
 def set_surname(message):
     msg_instance = bot.send_message(message.chat.id, "Укажите Вашу фамилию")
     user_data_for_join[message.chat.id] = {"name": message.text}
-    bot.register_next_step_handler(msg_instance, set_email)
-
-
-def set_email(message):
-    msg_instance = bot.send_message(message.chat.id, "Укажите Ваш e-mail")
-    user_data_for_join[message.chat.id]["surname"] = message.text
+    # bot.register_next_step_handler(msg_instance, set_email)
     bot.register_next_step_handler(msg_instance, set_enroll_type)
 
 
+# def set_email(message):
+#     msg_instance = bot.send_message(message.chat.id, "Укажите Ваш e-mail")
+#     user_data_for_join[message.chat.id]["surname"] = message.text
+#     bot.register_next_step_handler(msg_instance, set_enroll_type)
+
+
 def set_enroll_type(message):
-    if validators.email(message.text):
-        keyboard = InlineKeyboardMarkup()
-        keyboard.row(
-            InlineKeyboardButton("Индивидуальная онлайн", callback_data="enroll_type_online_single"),
-            InlineKeyboardButton("Парная онлайн", callback_data="enroll_type_online_dual"),
-        )
-        keyboard.row(
-            InlineKeyboardButton("Индивидуальная очно", callback_data="enroll_type_offline_single"),
-            InlineKeyboardButton("Парная очно", callback_data="enroll_type_offline_dual"),
-        )
-        bot.send_message(
-            chat_id=message.chat.id,
-            text="Вы хотите записаться на консультацию онлайн или встретиться с со мной очно?\n\n \
+    # if validators.email(message.text):
+    user_data_for_join[message.chat.id]["surname"] = message.text
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row(
+        InlineKeyboardButton("Индивидуальная онлайн", callback_data="enroll_type_online_single"),
+        InlineKeyboardButton("Парная онлайн", callback_data="enroll_type_online_dual"),
+    )
+    keyboard.row(
+        InlineKeyboardButton("Индивидуальная очно", callback_data="enroll_type_offline_single"),
+        InlineKeyboardButton("Парная очно", callback_data="enroll_type_offline_dual"),
+    )
+    bot.send_message(
+        chat_id=message.chat.id,
+        text="Вы хотите записаться на консультацию онлайн или встретиться с со мной очно?\n\n \
 Также хочу предупредить, что очный формат доступен только <b>по вторникам и четвергам с 15:30 до 22:00</b>\n\n \
 Длительность индивидуальных консультаций - <b>60 минут</b> \n \
 Длительность парных консультаций - <b>90 минут</b>",
-            reply_markup=keyboard,
-            parse_mode="html",
-        )
-        user_data_for_join[message.chat.id]["email"] = message.text
-    else:
-        bot.send_message(
-            message.chat.id,
-            "Некорректный email. Попробуйте ввести еще раз (example@mail.ru)",
-        )
-        bot.register_next_step_handler(message, set_enroll_type)
+        reply_markup=keyboard,
+        parse_mode="html",
+    )
+    # else:
+    #     bot.send_message(
+    #         message.chat.id,
+    #         "Некорректный email. Попробуйте ввести еще раз (example@mail.ru)",
+    #     )
+    #     bot.register_next_step_handler(message, set_enroll_type)
 
 
 # ====== Конец блока прохождения опроса ========
@@ -809,20 +835,29 @@ def set_appointment(call: CallbackQuery):
         send_event_info(call, event)
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("appointment_recurrence_yes::"))
+@bot.callback_query_handler(func=lambda call: call.data.startswith("recurrence_yes"))
 def appointment_recurrence_yes(call: CallbackQuery):
     event_id = call.data.split("::")[1]
     event = calendar.get_event(event_id)
     appointment_day = event["start"]["dateTime"].split("T")[0]
     time = event["start"]["dateTime"].split("T")[1][:5]
     msg_datetime = datetime.datetime.fromtimestamp(call.message.date)
-    created_events_list = calendar.create_multiply_event(
-        event,
-        get_next_3_weeks_date(
-            datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00"),
-            datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00"),
-        ),
-    )
+    if call.data.split("::")[0] == "recurrence_yes_everyweek":
+        created_events_list = calendar.create_multiply_event(
+            event,
+            get_next_3_weeks_date(
+                datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00"),
+                datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00"),
+            ),
+        )
+    elif call.data.split("::")[0] == "recurrence_yes_onetime2week":
+        created_events_list = calendar.create_multiply_event(
+            event,
+            get_onetime2week_date(
+                datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00"),
+                datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00"),
+            ),
+        )
     i = 0
     # events_info = f"{i}) {appointment_day} в {time}\n"
     events_info = ""
