@@ -1,6 +1,5 @@
 import datetime
 import calendar
-import string
 import typing
 from dataclasses import dataclass
 
@@ -12,7 +11,7 @@ from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQu
 class Language:
     days: tuple
     months: tuple
-    cancel: string
+    cancel: str
 
 
 ENGLISH_LANGUAGE = Language(
