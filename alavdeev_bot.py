@@ -44,10 +44,12 @@ SERVICE_ACCOUNT_FILE_PATH = os.path.join(BASE_DIR, "config", SERVICE_ACCOUNT_FIL
 
 schedule_file_json = os.path.join(BASE_DIR, "data/schedule.json")
 WRONG_CANCEL_TEXT = "<b>Консультацию нельзя отменить или перенести менее, чем за 24 часа</b>\n\
-Вы можете связаться с врачом лично и предупредить его об отмене консультации, но в \
+Вы можете связаться с Алексеем (@alavdeev) лично и предупредить его об отмене консультации, но в \
 этом случае консультация считается проведенной"
 about_file = os.path.join(BASE_DIR, "data/about.txt")
 DEFAULT_ABOUT_TEXT = "<b>Алексей Авдеев. Психолог-консультант, семейный психолог</b>"
+help_file = os.path.join(BASE_DIR, "data/help.txt")
+DEFAULT_HELP_TEXT = "Описания работы бота пока нет"
 
 bot = telebot.TeleBot(TOKEN, parse_mode=None)
 cal = Calendar(language=RUSSIAN_LANGUAGE)
@@ -208,8 +210,8 @@ def send_event_info(call, event):
     e_id = event.get("id")
     keyboard = InlineKeyboardMarkup()
     keyboard.row(
-        InlineKeyboardButton("Да, один раз в неделю", callback_data=f"recurrence_yes_everyweek::{e_id}"),
-        InlineKeyboardButton("Да, один раз в две недели", callback_data=f"recurrence_yes_onetime2week::{e_id}"),
+        InlineKeyboardButton("Да, раз в неделю", callback_data=f"recurrence_yes_everyweek::{e_id}"),
+        InlineKeyboardButton("Да, раз в две недели", callback_data=f"recurrence_yes_onetime2week::{e_id}"),
     )
     keyboard.row(
         InlineKeyboardButton("Нет", callback_data="info_appointment_START"),
@@ -224,7 +226,7 @@ def send_event_info(call, event):
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
         text=f"Вы успешно записались на консультацию {appointment_day} в {time}\n\
-Хотите записаться в это время ещё на 3 консультации?",
+Хотите забронировать это время и для будущих трех консультаций?",
         parse_mode="html",
         reply_markup=keyboard,
     )
@@ -337,7 +339,16 @@ def check_24h(e_id):
 
 @bot.message_handler(commands=["help"])
 def help_cmd(message):
-    bot.send_message(message.chat.id, "Тут будет описание команд и возможностей бота")
+    if os.path.isfile(help_file):
+        with io.open(help_file, encoding="utf-8") as f:
+            help_text = f.read()
+        if len(help_text) < 2:
+            help_text = DEFAULT_HELP_TEXT
+    bot.send_message(
+        message.chat.id,
+        text=help_text,
+        parse_mode="html",
+    )
 
 
 @bot.message_handler(commands=["start"])
@@ -879,18 +890,32 @@ def appointment_recurrence_yes(call: CallbackQuery):
     #     parse_mode="html",
     #     reply_markup=keyboard,
     # )
-    bot.send_message(
-        chat_id=call.message.chat.id,
-        text=f"Вы успешно записались на консультации:\n{events_info}",
-        parse_mode="html",
-        reply_markup=keyboard,
-    )
-    bot.send_message(
-        MANAGER_ID,
-        text=f"<b>{msg_datetime} У Вас новые записи на {event['summary']}:</b>\n{events_info}\n\
+    if len(created_events_list) > 0:
+        bot.send_message(
+            chat_id=call.message.chat.id,
+            text=f"Вы успешно записались на консультации:\n{events_info}",
+            parse_mode="html",
+            reply_markup=keyboard,
+        )
+        bot.send_message(
+            MANAGER_ID,
+            text=f"<b>{msg_datetime} У Вас новые записи на {event['summary']}:</b>\n{events_info}\n\
 <b>Описание:</b>\n{event['description']}",
-        parse_mode="html",
-    )
+            parse_mode="html",
+        )
+    else:
+        keyboard = InlineKeyboardMarkup()
+        keyboard.row(
+            InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+            InlineKeyboardButton("Записаться", callback_data="enroll_start_appointment"),
+        )
+        bot.send_message(
+            chat_id=call.message.chat.id,
+            text=f"К сожаленью, в {time} на предстоящих неделях всё занято.\n\
+Но Вы можете выбрать удобное свободное время записываясь на каждую консультацию отдельно",
+            parse_mode="html",
+            reply_markup=keyboard,
+        )
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "edit_appointment")
@@ -1431,12 +1456,15 @@ def main():
         while True:
             try:
                 bot.polling(non_stop=True)
-            except (ReadTimeout, ReadTimeoutError, TimeoutError) as e:
-                print(e)
+            except (ReadTimeout, ReadTimeoutError, TimeoutError):
                 time.sleep(5)
                 continue
     except KeyboardInterrupt:
         sys.exit()
+    # try:
+    #     bot.polling(non_stop=True)
+    # except (ReadTimeout, ReadTimeoutError, TimeoutError):
+    #     time.sleep(5)
 
 
 if __name__ == "__main__":
