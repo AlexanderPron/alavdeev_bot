@@ -1,5 +1,7 @@
 import telebot
 from telebot.apihelper import ApiTelegramException
+from requests.exceptions import ReadTimeout
+from urllib3.exceptions import ReadTimeoutError
 from telebot_calendar import Calendar, RUSSIAN_LANGUAGE, CallbackData
 from telebot.types import (
     ReplyKeyboardRemove,
@@ -14,6 +16,7 @@ import json
 import configparser
 import os.path
 import io
+import sys
 import validators
 from googleCalendar import GoogleCalendar
 
@@ -206,9 +209,7 @@ def send_event_info(call, event):
     keyboard = InlineKeyboardMarkup()
     keyboard.row(
         InlineKeyboardButton("Да, один раз в неделю", callback_data=f"recurrence_yes_everyweek::{e_id}"),
-        InlineKeyboardButton(
-            "Да, один раз в две недели", callback_data=f"recurrence_yes_onetime2week::{e_id}"
-        ),
+        InlineKeyboardButton("Да, один раз в две недели", callback_data=f"recurrence_yes_onetime2week::{e_id}"),
     )
     keyboard.row(
         InlineKeyboardButton("Нет", callback_data="info_appointment_START"),
@@ -1426,7 +1427,16 @@ def move_appointment(call: CallbackQuery):
 
 
 def main():
-    bot.polling(non_stop=True)
+    try:
+        while True:
+            try:
+                bot.polling(non_stop=True)
+            except (ReadTimeout, ReadTimeoutError, TimeoutError) as e:
+                print(e)
+                time.sleep(5)
+                continue
+    except KeyboardInterrupt:
+        sys.exit()
 
 
 if __name__ == "__main__":
