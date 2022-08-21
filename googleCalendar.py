@@ -38,7 +38,6 @@ class GoogleCalendar(object):
 
     def create_event(self, event):
         e = self.service.events().insert(calendarId=self.calendarId, body=event).execute()
-        # print("Event created: %s" % (e.get("id")))
         return e
 
     def create_multiply_event(self, event, datetime_list=[]):
@@ -118,7 +117,6 @@ class GoogleCalendar(object):
         t2 = time.strptime(time_end, "%H:%M")
         ts = (day + datetime.timedelta(hours=t1.tm_hour, minutes=t1.tm_min)).strftime("%Y-%m-%dT%H:%M:%S+03:00")
         te = (day + datetime.timedelta(hours=t2.tm_hour, minutes=t2.tm_min)).strftime("%Y-%m-%dT%H:%M:%S+03:00")
-        # print(f"{t1}\n{t2}\n{ts}\n{te}\n===========\n")
         query_body = {"timeMin": ts, "timeMax": te, "timeZone": "Europe/Moscow", "items": [{"id": self.calendarId}]}
         busy_info = self.service.freebusy().query(body=query_body).execute()
         busy_time_list = busy_info.get("calendars").get(self.calendarId).get("busy", [])
