@@ -1,7 +1,14 @@
 import telebot
 from telebot.apihelper import ApiTelegramException
-from requests.exceptions import ReadTimeout
-from urllib3.exceptions import ReadTimeoutError
+from requests.exceptions import (
+    ReadTimeout,
+    ConnectionError,
+)
+from urllib3.exceptions import (
+    ReadTimeoutError,
+    ProtocolError,
+)
+from http.client import RemoteDisconnected
 from telebot_calendar import Calendar, RUSSIAN_LANGUAGE, CallbackData
 from telebot.types import (
     CallbackQuery,
@@ -478,9 +485,9 @@ def set_enroll_type(message):
     )
     bot.send_message(
         chat_id=message.chat.id,
-        text="Вы хотите записаться на консультацию онлайн или встретиться с со мной очно?\n\n \
-Также хочу предупредить, что очный формат доступен только <b>по вторникам и четвергам с 15:30 до 22:00</b>\n\n \
-Длительность индивидуальных консультаций - <b>60 минут</b> \n \
+        text="Вы хотите записаться на консультацию онлайн или встретиться с со мной очно?\n\n\
+Также хочу предупредить, что очный формат доступен только <b>по вторникам и четвергам с 15:30 до 22:00</b>\n\n\
+Длительность индивидуальных консультаций - <b>60 минут</b> \n\
 Длительность парных консультаций - <b>90 минут</b>",
         reply_markup=keyboard,
         parse_mode="html",
@@ -514,7 +521,7 @@ def enroll_calendar_show(call: CallbackQuery):
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text="Выберите дату, когда Вам удобно было-бы провести очную индивидуальную консультацию.\n \
+            text="Выберите дату, когда Вам удобно было-бы провести очную индивидуальную консультацию.\n\
 Напоминаю, что для очных доступны только вторники и четверги",
             reply_markup=cal.create_calendar(
                 name=calendar_offline_single_cb.prefix,
@@ -537,7 +544,7 @@ def enroll_calendar_show(call: CallbackQuery):
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text="Выберите дату, когда Вам удобно было-бы провести очную парную консультацию.\n \
+            text="Выберите дату, когда Вам удобно было-бы провести очную парную консультацию.\n\
 Напоминаю, что для очных доступны только вторники и четверги",
             reply_markup=cal.create_calendar(
                 name=calendar_offline_dual_cb.prefix,
@@ -861,8 +868,9 @@ def appointment_recurrence_yes(call: CallbackQuery):
         InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
     )
     if len(created_events_list) > 0:
-        bot.send_message(
+        bot.edit_message_text(
             chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
             text=f"Вы успешно записались на консультации:\n{events_info}",
             parse_mode="html",
             reply_markup=keyboard,
@@ -879,8 +887,9 @@ def appointment_recurrence_yes(call: CallbackQuery):
             InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
             InlineKeyboardButton("Записаться", callback_data="enroll_start_appointment"),
         )
-        bot.send_message(
+        bot.edit_message_text(
             chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
             text=f"К сожаленью, в {time} на предстоящих неделях всё занято.\n\
 Но Вы можете выбрать удобное свободное время записываясь на каждую консультацию отдельно",
             parse_mode="html",
@@ -1022,7 +1031,7 @@ def move_enroll_calendar_show(call: CallbackQuery):
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
-                text="Выберите дату, когда Вам удобно было-бы провести очную индивидуальную консультацию.\n \
+                text="Выберите дату, когда Вам удобно было-бы провести очную индивидуальную консультацию.\n\
 Напоминаю, что для очных доступны только вторники и четверги",
                 reply_markup=cal.create_calendar(
                     name=move_enroll_offline_single_cb.prefix,
@@ -1045,7 +1054,7 @@ def move_enroll_calendar_show(call: CallbackQuery):
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
-                text="Выберите дату, когда Вам удобно было-бы провести очную парную консультацию.\n \
+                text="Выберите дату, когда Вам удобно было-бы провести очную парную консультацию.\n\
 Напоминаю, что для очных доступны только вторники и четверги",
                 reply_markup=cal.create_calendar(
                     name=move_enroll_offline_dual_cb.prefix,
@@ -1425,14 +1434,28 @@ def main():
         while True:
             try:
                 bot.polling(non_stop=True)
-            except (ReadTimeout, ReadTimeoutError, TimeoutError):
+            except (
+                ReadTimeout,
+                ReadTimeoutError,
+                TimeoutError,
+                RemoteDisconnected,
+                ProtocolError,
+                ConnectionError,
+            ):
                 time.sleep(5)
                 continue
     except KeyboardInterrupt:
         sys.exit()
     # try:
     #     bot.polling(non_stop=True)
-    # except (ReadTimeout, ReadTimeoutError, TimeoutError):
+    # except (
+    #     ReadTimeout,
+    #     ReadTimeoutError,
+    #     TimeoutError,
+    #     RemoteDisconnected,
+    #     ProtocolError,
+    #     ConnectionError,
+    # ):
     #     time.sleep(5)
 
 
