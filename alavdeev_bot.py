@@ -891,30 +891,48 @@ def appointment_recurrence_yes(call: CallbackQuery):
 @bot.callback_query_handler(func=lambda call: call.data == "edit_appointment")
 def edit_appointment(call: CallbackQuery):
     keyboard = InlineKeyboardMarkup(row_width=1)
-    events = calendar.get_user_events_list(call.message.chat.username)
-    if events:
-        for event in events:
-            e_summary = event["summary"]
-            e_date = str(datetime.datetime.fromisoformat(event["start"]["dateTime"]).date())
-            e_time = f'{datetime.datetime.fromisoformat(event["start"]["dateTime"]).strftime("%H:%M")} - \
-{datetime.datetime.fromisoformat(event["end"]["dateTime"]).strftime("%H:%M")}'
-            keyboard.add(InlineKeyboardButton(f"{e_summary} {e_date} {e_time}", callback_data=f'event::{event["id"]}'))
-        bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text="<b>Ваши записи:</b>",
-            parse_mode="html",
-            reply_markup=keyboard,
-        )
+    if call.message.chat.username:
+        events = calendar.get_user_events_list(call.message.chat.username)
+        if events:
+            for event in events:
+                e_summary = event["summary"]
+                e_date = str(datetime.datetime.fromisoformat(event["start"]["dateTime"]).date())
+                e_time = f'{datetime.datetime.fromisoformat(event["start"]["dateTime"]).strftime("%H:%M")} - \
+    {datetime.datetime.fromisoformat(event["end"]["dateTime"]).strftime("%H:%M")}'
+                keyboard.add(
+                    InlineKeyboardButton(f"{e_summary} {e_date} {e_time}", callback_data=f'event::{event["id"]}')
+                )
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="<b>Ваши записи:</b>",
+                parse_mode="html",
+                reply_markup=keyboard,
+            )
+        else:
+            keyboard.row(
+                InlineKeyboardButton("Записаться", callback_data="enroll_start_appointment"),
+                InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
+            )
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="У Вас нет ни одной записи",
+                reply_markup=keyboard,
+            )
     else:
         keyboard.row(
-            InlineKeyboardButton("Записаться", callback_data="enroll_start_appointment"),
             InlineKeyboardButton("В начало", callback_data="info_appointment_START"),
         )
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text="У Вас нет ни одной записи",
+            text="У Вас не задано имя пользователя в профиле telegram.\n\
+К сожалению, по этой причине я не могу отобразить Ваши записи.\n\
+Пожалуйста, обратитесь к Алексею (@alavdeev) лично для внесения изменений в Ваши записи.\n\
+Вы можете указать в настройках telegram Ваше имя пользователя,\
+после этого появится возможность просматривать и редактировать Ваши записи",
+            parse_mode="html",
             reply_markup=keyboard,
         )
 
