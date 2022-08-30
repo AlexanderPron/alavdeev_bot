@@ -19,7 +19,7 @@ class GoogleCalendar(object):
         self.service = googleapiclient.discovery.build("calendar", "v3", credentials=credentials)
 
     # создание словаря с информацией о событии
-    def create_event_dict(self, summary, description, start, end, **kwargs):
+    def create_event_dict(self, event_type, summary, description, start, end, **kwargs):
         event = {
             "summary": summary,
             "description": description,
@@ -28,6 +28,11 @@ class GoogleCalendar(object):
             },
             "end": {
                 "dateTime": end,
+            },
+            "extendedProperties": {
+                "private": {
+                    "type": event_type,
+                }
             },
         }
         if "colorId" in kwargs:
@@ -53,7 +58,11 @@ class GoogleCalendar(object):
                 for free_time in free_time_list:
                     if dt["start"] >= free_time["start"] and dt["end"] <= free_time["end"]:
                         new_event = self.create_event_dict(
-                            event["summary"], event["description"], dt["start"], dt["end"], colorId=event["colorId"]
+                            event["extendedProperties"],
+                            event["summary"],
+                            event["description"],
+                            dt["start"], dt["end"],
+                            colorId=event["colorId"],
                         )
                         event_inst = self.create_event(new_event)
                         created_event_list.append(event_inst)

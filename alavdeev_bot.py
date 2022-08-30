@@ -79,14 +79,6 @@ telebot.logger.setLevel(logging.WARNING)
 # telebot.logger.setLevel(logging.DEBUG)
 
 
-# class Appointment:
-#     def __init__(self, date_time, duration=60, type="single", mode="online"):
-#         self.date_time = date_time
-#         self.duration = duration
-#         self.type = type
-#         self.mode = mode
-
-
 def convert_schedule_json_to_text(json_file):
     with io.open(json_file, "r", encoding="utf-8") as f:
         text = "<b>Вы можете записаться на консультацию</b>\n"
@@ -160,34 +152,64 @@ def get_event_type(event):
     4 - парная очная консультация
     """
 
-    if event["summary"] == "Online консультация":
-        event_dt = datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00")
-        event_et = datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00")
-        duration_min = (event_et - event_dt).total_seconds() / 60
-        if duration_min == 60:
-            return 1  # индивидуальная online консультация
-        if duration_min == 90:
-            return 2  # парная online консультация
-    elif event["summary"] == "Очная консультация":
-        event_dt = datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00")
-        event_et = datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00")
-        duration_min = (event_et - event_dt).total_seconds() / 60
-        if duration_min == 60:
-            return 3  # индивидуальная очная консультация
-        if duration_min == 90:
-            return 4  # парная очная консультация
+    if event["extendedProperties"]["private"]["type"] == "single_online":
+        return 1  # индивидуальная online консультация
+    if event["extendedProperties"]["private"]["type"] == "dual_online":
+        return 2  # парная online консультация
+    if event["extendedProperties"]["private"]["type"] == "single_offline":
+        return 3  # индивидуальная очная консультация
+    if event["extendedProperties"]["private"]["type"] == "dual_offline":
+        return 4  # парная очная консультация
     else:
         return 0  # Событие, не созданное ботом
 
 
+def type_to_rus(eng_type):
+    """
+    Функция для преобразования ангийского названия типа записи в русское.
+    Например, single_online --> индивидуальня online
+    """
+    txt = ""
+    if eng_type == "single_online":
+        txt = "индивидуальная online"
+    if eng_type == "dual_online":
+        txt = "парная online"
+    if eng_type == "single_offline":
+        txt = "индивидуальная очная"
+    if eng_type == "dual_offline":
+        txt = "парная очная"
+    return txt
+
+    # if event["summary"] == "Online консультация":
+    #     event_dt = datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00")
+    #     event_et = datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00")
+    #     duration_min = (event_et - event_dt).total_seconds() / 60
+    #     if duration_min == 60:
+    #         return 1  # индивидуальная online консультация
+    #     if duration_min == 90:
+    #         return 2  # парная online консультация
+    # elif event["summary"] == "Очная консультация":
+    #     event_dt = datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00")
+    #     event_et = datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00")
+    #     duration_min = (event_et - event_dt).total_seconds() / 60
+    #     if duration_min == 60:
+    #         return 3  # индивидуальная очная консультация
+    #     if duration_min == 90:
+    #         return 4  # парная очная консультация
+    # else:
+    #     return 0  # Событие, не созданное ботом
+
+
 def add_event(call, appointment_type, appointment_mode, appointment_day, appointment_time, user_data_for_join):
     duration = 60 if appointment_type == "single" else 90
-    if appointment_mode == "online":
-        appointment_summary = "Online консультация"
-        color = "1"
-    else:
-        appointment_summary = "Очная консультация"
-        color = "7"
+    # if appointment_mode == "online":
+    #     # appointment_summary = "Online консультация"
+    #     color = "1"
+    # else:
+    #     # appointment_summary = "Очная консультация"
+    #     color = "7"
+    appointment_summary = f"{user_data_for_join[call.message.chat.id]['name']} \
+{user_data_for_join[call.message.chat.id]['surname']}"
     t = time.strptime(appointment_time, "%H:%M")
     ts = (
         datetime.datetime.strptime(appointment_day, "%Y-%m-%d") + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
@@ -196,9 +218,22 @@ def add_event(call, appointment_type, appointment_mode, appointment_day, appoint
         datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
         + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + duration)
     ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
-    keyboard = InlineKeyboardMarkup()
-    keyboard.row(InlineKeyboardButton("В начало", callback_data="info_appointment_START"))
+
+    if appointment_type == "single" and appointment_mode == "online":
+        color = "1"
+        event_type = "single_online"
+    if appointment_type == "single" and appointment_mode == "offline":
+        color = "7"
+        event_type = "single_offline"
+    if appointment_type == "dual" and appointment_mode == "online":
+        color = "1"
+        event_type = "dual_online"
+    if appointment_type == "dual" and appointment_mode == "offline":
+        color = "7"
+        event_type = "dual_offline"
+
     event = calendar.create_event_dict(
+        event_type=event_type,
         summary=appointment_summary,
         description=f"<b>telegram:</b> @{call.message.chat.username}\n\
 <b>Имя:</b> {user_data_for_join[call.message.chat.id]['name']}\n\
@@ -207,6 +242,8 @@ def add_event(call, appointment_type, appointment_mode, appointment_day, appoint
         end=te,
         colorId=color,
     )
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row(InlineKeyboardButton("В начало", callback_data="info_appointment_START"))
     created_event = calendar.create_event(event)
     return created_event
 
@@ -234,9 +271,9 @@ def send_event_info(call, event):
     )
     bot.send_message(
         MANAGER_ID,
-        text=f"<b>{msg_datetime} У Вас новая запись на {event['summary']} на \
-{appointment_day} в {time}</b>\n\
-{event['description']}",
+        text=f'<b>{msg_datetime} У Вас новая запись на {type_to_rus(event["extendedProperties"]["private"]["type"])} консультацию \
+на {appointment_day} в {time}</b>\n\
+{event["description"]}',
         parse_mode="html",
     )
 
@@ -258,9 +295,9 @@ def send_move_event_info(call, event):
     )
     bot.send_message(
         MANAGER_ID,
-        text=f"<b>{msg_datetime} Перенос записи {event['summary']} на \
+        text=f'<b>{msg_datetime} Перенос записи {type_to_rus(event["extendedProperties"]["private"]["type"])} консультации на \
 {appointment_day} в {time}</b>\n\
-{event['description']}",
+{event["description"]}',
         parse_mode="html",
     )
 
@@ -275,9 +312,8 @@ def send_cancel_event_info(call, event):
     )
     bot.send_message(
         MANAGER_ID,
-        text=f"<b>{msg_datetime} Отмена записи {event['summary']} на \
-{appointment_day} в {time}</b>\n\
-{event['description']}",
+        text=f'<b>{msg_datetime} Отмена записи {type_to_rus(event["extendedProperties"]["private"]["type"])} консультации на \
+{appointment_day} в {time}</b>\n\{event["description"]}',
         parse_mode="html",
     )
 
@@ -877,8 +913,8 @@ def appointment_recurrence_yes(call: CallbackQuery):
         )
         bot.send_message(
             MANAGER_ID,
-            text=f"<b>{msg_datetime} У Вас новые записи на {event['summary']}:</b>\n{events_info}\n\
-<b>Описание:</b>\n{event['description']}",
+            text=f'<b>{msg_datetime} У Вас новые записи на {type_to_rus(event["extendedProperties"]["private"]["type"])} \
+консультации:</b>\n{events_info}\n<b>Описание:</b>\n{event["description"]}',
             parse_mode="html",
         )
     else:
@@ -904,12 +940,13 @@ def edit_appointment(call: CallbackQuery):
         events = calendar.get_user_events_list(call.message.chat.username)
         if events:
             for event in events:
-                e_summary = event["summary"]
+                # e_type = type_to_rus(event["extendedProperties"]["private"]["type"])
+                e_type = ""
                 e_date = str(datetime.datetime.fromisoformat(event["start"]["dateTime"]).date())
                 e_time = f'{datetime.datetime.fromisoformat(event["start"]["dateTime"]).strftime("%H:%M")} - \
     {datetime.datetime.fromisoformat(event["end"]["dateTime"]).strftime("%H:%M")}'
                 keyboard.add(
-                    InlineKeyboardButton(f"{e_summary} {e_date} {e_time}", callback_data=f'event::{event["id"]}')
+                    InlineKeyboardButton(f"{e_type} {e_date} {e_time}", callback_data=f'event::{event["id"]}')
                 )
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
@@ -951,6 +988,7 @@ def event_detail(call: CallbackQuery):
     keyboard = InlineKeyboardMarkup()
     e_id = call.data.split("::")[1]
     event = calendar.get_event(e_id)
+    print(event)
     e_date = str(datetime.datetime.fromisoformat(event["start"]["dateTime"]).date())
     e_time = f'{datetime.datetime.fromisoformat(event["start"]["dateTime"]).strftime("%H:%M")} - \
 {datetime.datetime.fromisoformat(event["end"]["dateTime"]).strftime("%H:%M")}'
@@ -965,7 +1003,8 @@ def event_detail(call: CallbackQuery):
     bot.edit_message_text(
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
-        text=f"<b>Дата:</b> {e_date}\n<b>Время:</b> {e_time}\n<b>{event['summary']}</b>\n{event['description']}",
+        text=f'<b>Дата:</b> {e_date}\n<b>Время:</b> {e_time}\n\
+<b>{type_to_rus(event["extendedProperties"]["private"]["type"])} консультация</b>\n{event["description"]}',
         parse_mode="html",
         reply_markup=keyboard,
     )
