@@ -164,20 +164,33 @@ def get_event_type(event):
         return 0  # Событие, не созданное ботом
 
 
-def type_to_rus(eng_type):
+def type_to_rus(eng_type, case="nominative"):
     """
     Функция для преобразования ангийского названия типа записи в русское.
     Например, single_online --> индивидуальня online
     """
+
     txt = ""
-    if eng_type == "single_online":
-        txt = "индивидуальная online"
-    if eng_type == "dual_online":
-        txt = "парная online"
-    if eng_type == "single_offline":
-        txt = "индивидуальная очная"
-    if eng_type == "dual_offline":
-        txt = "парная очная"
+    # Именительный падеж
+    if case == "nominative":
+        if eng_type == "single_online":
+            txt = "индивидуальная online"
+        if eng_type == "dual_online":
+            txt = "парная online"
+        if eng_type == "single_offline":
+            txt = "индивидуальная очная"
+        if eng_type == "dual_offline":
+            txt = "парная очная"
+    # Винительный падеж
+    if case == "accusative":
+        if eng_type == "single_online":
+            txt = "индивидуальную online"
+        if eng_type == "dual_online":
+            txt = "парную online"
+        if eng_type == "single_offline":
+            txt = "индивидуальную очную"
+        if eng_type == "dual_offline":
+            txt = "парную очную"
     return txt
 
     # if event["summary"] == "Online консультация":
@@ -202,12 +215,6 @@ def type_to_rus(eng_type):
 
 def add_event(call, appointment_type, appointment_mode, appointment_day, appointment_time, user_data_for_join):
     duration = 60 if appointment_type == "single" else 90
-    # if appointment_mode == "online":
-    #     # appointment_summary = "Online консультация"
-    #     color = "1"
-    # else:
-    #     # appointment_summary = "Очная консультация"
-    #     color = "7"
     appointment_summary = f"{user_data_for_join[call.message.chat.id]['name']} \
 {user_data_for_join[call.message.chat.id]['surname']}"
     t = time.strptime(appointment_time, "%H:%M")
@@ -271,9 +278,9 @@ def send_event_info(call, event):
     )
     bot.send_message(
         MANAGER_ID,
-        text=f'<b>{msg_datetime} У Вас новая запись на {type_to_rus(event["extendedProperties"]["private"]["type"])} консультацию \
-на {appointment_day} в {time}</b>\n\
-{event["description"]}',
+        text=f'<b>{msg_datetime} У Вас новая запись на \
+{type_to_rus(event["extendedProperties"]["private"]["type"], case="accusative")} \
+консультацию на {appointment_day} в {time}</b>\n{event["description"]}',
         parse_mode="html",
     )
 
@@ -295,9 +302,9 @@ def send_move_event_info(call, event):
     )
     bot.send_message(
         MANAGER_ID,
-        text=f'<b>{msg_datetime} Перенос записи {type_to_rus(event["extendedProperties"]["private"]["type"])} консультации на \
-{appointment_day} в {time}</b>\n\
-{event["description"]}',
+        text=f'<b>{msg_datetime} Перенос записи на \
+{type_to_rus(event["extendedProperties"]["private"]["type"], case="accusative")} консультацию на \
+{appointment_day} в {time}</b>\n{event["description"]}',
         parse_mode="html",
     )
 
@@ -312,8 +319,9 @@ def send_cancel_event_info(call, event):
     )
     bot.send_message(
         MANAGER_ID,
-        text=f'<b>{msg_datetime} Отмена записи {type_to_rus(event["extendedProperties"]["private"]["type"])} консультации на \
-{appointment_day} в {time}</b>\n\{event["description"]}',
+        text=f'<b>{msg_datetime} Отмена записи на \
+{type_to_rus(event["extendedProperties"]["private"]["type"], case="accusative")} консультацию \
+{appointment_day} в {time}</b>\n{event["description"]}',
         parse_mode="html",
     )
 
@@ -913,8 +921,9 @@ def appointment_recurrence_yes(call: CallbackQuery):
         )
         bot.send_message(
             MANAGER_ID,
-            text=f'<b>{msg_datetime} У Вас новые записи на {type_to_rus(event["extendedProperties"]["private"]["type"])} \
-консультации:</b>\n{events_info}\n<b>Описание:</b>\n{event["description"]}',
+            text=f'<b>{msg_datetime} У Вас новая запись на \
+{type_to_rus(event["extendedProperties"]["private"]["type"], case="accusative")} \
+консультацию:</b>\n{events_info}\n<b>Описание:</b>\n{event["description"]}',
             parse_mode="html",
         )
     else:
@@ -940,13 +949,15 @@ def edit_appointment(call: CallbackQuery):
         events = calendar.get_user_events_list(call.message.chat.username)
         if events:
             for event in events:
-                # e_type = type_to_rus(event["extendedProperties"]["private"]["type"])
-                e_type = ""
+                e_type = type_to_rus(event["extendedProperties"]["private"]["type"]).split()[1].capitalize()
                 e_date = str(datetime.datetime.fromisoformat(event["start"]["dateTime"]).date())
                 e_time = f'{datetime.datetime.fromisoformat(event["start"]["dateTime"]).strftime("%H:%M")} - \
-    {datetime.datetime.fromisoformat(event["end"]["dateTime"]).strftime("%H:%M")}'
+{datetime.datetime.fromisoformat(event["end"]["dateTime"]).strftime("%H:%M")}'
                 keyboard.add(
-                    InlineKeyboardButton(f"{e_type} {e_date} {e_time}", callback_data=f'event::{event["id"]}')
+                    InlineKeyboardButton(
+                        f"{e_type} консультация {e_date} {e_time}",
+                        callback_data=f'event::{event["id"]}'
+                    ),
                 )
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
@@ -988,7 +999,6 @@ def event_detail(call: CallbackQuery):
     keyboard = InlineKeyboardMarkup()
     e_id = call.data.split("::")[1]
     event = calendar.get_event(e_id)
-    print(event)
     e_date = str(datetime.datetime.fromisoformat(event["start"]["dateTime"]).date())
     e_time = f'{datetime.datetime.fromisoformat(event["start"]["dateTime"]).strftime("%H:%M")} - \
 {datetime.datetime.fromisoformat(event["end"]["dateTime"]).strftime("%H:%M")}'
@@ -1004,7 +1014,7 @@ def event_detail(call: CallbackQuery):
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
         text=f'<b>Дата:</b> {e_date}\n<b>Время:</b> {e_time}\n\
-<b>{type_to_rus(event["extendedProperties"]["private"]["type"])} консультация</b>\n{event["description"]}',
+<b>{type_to_rus(event["extendedProperties"]["private"]["type"]).capitalize()} консультация</b>\n{event["description"]}',
         parse_mode="html",
         reply_markup=keyboard,
     )
@@ -1469,33 +1479,33 @@ def move_appointment(call: CallbackQuery):
 
 
 def main():
-    try:
-        while True:
-            try:
-                bot.polling(non_stop=True)
-            except (
-                ReadTimeout,
-                ReadTimeoutError,
-                TimeoutError,
-                RemoteDisconnected,
-                ProtocolError,
-                ConnectionError,
-            ):
-                time.sleep(5)
-                continue
-    except KeyboardInterrupt:
-        sys.exit()
     # try:
-    #     bot.polling(non_stop=True)
-    # except (
-    #     ReadTimeout,
-    #     ReadTimeoutError,
-    #     TimeoutError,
-    #     RemoteDisconnected,
-    #     ProtocolError,
-    #     ConnectionError,
-    # ):
-    #     time.sleep(5)
+    #     while True:
+    #         try:
+    #             bot.polling(non_stop=True)
+    #         except (
+    #             ReadTimeout,
+    #             ReadTimeoutError,
+    #             TimeoutError,
+    #             RemoteDisconnected,
+    #             ProtocolError,
+    #             ConnectionError,
+    #         ):
+    #             time.sleep(5)
+    #             continue
+    # except KeyboardInterrupt:
+    #     sys.exit()
+    try:
+        bot.polling(non_stop=True)
+    except (
+        ReadTimeout,
+        ReadTimeoutError,
+        TimeoutError,
+        RemoteDisconnected,
+        ProtocolError,
+        ConnectionError,
+    ):
+        time.sleep(5)
 
 
 if __name__ == "__main__":

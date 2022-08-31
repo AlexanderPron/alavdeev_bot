@@ -58,7 +58,7 @@ class GoogleCalendar(object):
                 for free_time in free_time_list:
                     if dt["start"] >= free_time["start"] and dt["end"] <= free_time["end"]:
                         new_event = self.create_event_dict(
-                            event["extendedProperties"],
+                            event["extendedProperties"]["private"]["type"],
                             event["summary"],
                             event["description"],
                             dt["start"], dt["end"],
