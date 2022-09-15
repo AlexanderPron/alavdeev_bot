@@ -148,7 +148,7 @@ db*.json
 
 
 # Django model
-migrations
+# migrations
 
 # Script files
 01m*
@@ -168,4 +168,3 @@ dev_settings.ini
 avd-bot-87f99ff81853.json
 test.py
 ecosystem.config.js
-alembic.ini

@@ -4,14 +4,13 @@ from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import relationship
-from sqlalchemy import create_engine
 
 Base = declarative_base()
-engine = create_engine('postgresql+psycopg2://botmanager:herbghjx@188.120.245.187/botmanager')
+metadata = Base.metadata
 
 
-class User(Base):
-    __tablename__ = "user"
+class Users(Base):
+    __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
     name = Column(String(30), nullable=False)
@@ -28,12 +27,9 @@ class Event(Base):
 
     id = Column(Integer, primary_key=True)
     event_type = Column(String)
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    user = relationship("User", back_populates="events")
+    user = relationship("Users", back_populates="events")
 
     def __repr__(self):
         return f"Event(id={self.id}, event_type={self.event_type}, user_id={self.user.id})"
-
-
-Base.metadata.create_all(engine)

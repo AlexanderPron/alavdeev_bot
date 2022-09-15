@@ -46,6 +46,19 @@ try:
 except Exception:
     print(f"Something wrong with {CURR_SETTINGS}")
     exit()
+
+try:
+    DB_HOST = config["DataBase"]["db_host"]
+    DB_PORT = config["DataBase"]["db_port"]
+    DB_USER = config["DataBase"]["db_user"]
+    DB_NAME = config["DataBase"]["db_name"]
+    DB_PASS = config["DataBase"]["db_pass"]
+except Exception:
+    print(f"Something wrong with {CURR_SETTINGS}")
+    exit()
+
+engine = f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
 SERVICE_ACCOUNT_FILE_PATH = os.path.join(BASE_DIR, "config", SERVICE_ACCOUNT_FILE)
 
 schedule_file_json = os.path.join(BASE_DIR, "data/schedule.json")
