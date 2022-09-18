@@ -1,3 +1,4 @@
+from enum import unique
 from sqlalchemy import Column
 from sqlalchemy import ForeignKey
 from sqlalchemy import Integer

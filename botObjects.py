@@ -5,7 +5,7 @@ from datetime import date, datetime
 @dataclass
 class UserData:
     """Тип данных для пользователя"""
-
+    id: int = None
     name: str = None
     lastname: str = None
     tg_username: str = None
