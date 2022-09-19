@@ -9,7 +9,7 @@ from sqlalchemy.exc import (
 
 
 def user_record_to_userdata(users_list: Users):
-    '''Функция перевода списка кортежей записей пользователей в список объектов UserData'''
+    """Функция перевода списка кортежей записей пользователей в список объектов UserData"""
     user_obj_list = []
     for user in users_list:
         return_user = UserData(
@@ -20,11 +20,12 @@ def user_record_to_userdata(users_list: Users):
             tg_chat_id=user.tg_chat_id,
         )
         user_obj_list.append(return_user)
-    return(user_obj_list)
+    return user_obj_list
 
 
 class DBot(object):
-    '''Класс для работы с БД'''
+    """Класс для работы с БД"""
+
     def __init__(self, engine_str):
         self.engine = create_engine(engine_str)
         self.session = Session(bind=self.engine)
@@ -43,7 +44,7 @@ class DBot(object):
         try:
             user = self.session.query(Users).filter(Users.tg_username == tg_username)
         except MultipleResultsFound:
-            pass
+            return False
         except NoResultFound:
-            pass
+            return False
         return user_record_to_userdata(user)
