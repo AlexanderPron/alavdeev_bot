@@ -1,8 +1,10 @@
-from enum import unique
-from sqlalchemy import Column
-from sqlalchemy import ForeignKey
-from sqlalchemy import Integer
-from sqlalchemy import String
+from sqlalchemy import (
+    Column,
+    ForeignKey,
+    Integer,
+    BigInteger,
+    String,
+)
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -17,7 +19,7 @@ class Users(Base):
     name = Column(String(30), nullable=False)
     lastname = Column(String)
     tg_username = Column(String(30))
-    tg_chat_id = Column(Integer)
+    tg_chat_id = Column(BigInteger)
 
     def __repr__(self):
         return f"User(id={self.id}, name={self.name}, lastname={self.lastname})"

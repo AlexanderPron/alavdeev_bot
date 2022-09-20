@@ -39,6 +39,8 @@ class DBot(object):
         )
         self.session.add(new_user)
         self.session.commit()
+        self.session.refresh(new_user)
+        return new_user
 
     def get_user(self, tg_username):
         try:

@@ -22,7 +22,7 @@ if config.config_file_name is not None:
 target_metadata = [Base.metadata]
 # target_metadata = None
 
-config.set_main_option('sqlalchemy.url', engine)
+config.set_main_option("sqlalchemy.url", engine)
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
@@ -68,7 +68,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
         )
 
         with context.begin_transaction():

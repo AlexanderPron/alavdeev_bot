@@ -9,12 +9,15 @@ from urllib3.exceptions import (
     ProtocolError,
 )
 from http.client import RemoteDisconnected
+from botObjects import UserData
 from telebot_calendar import Calendar, RUSSIAN_LANGUAGE, CallbackData
 from telebot.types import (
     CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
+
+from DBot import DBot
 import datetime
 import time
 import logging
@@ -23,6 +26,7 @@ import configparser
 import os.path
 import io
 import sys
+
 # import validators
 from googleCalendar import GoogleCalendar
 
@@ -31,6 +35,7 @@ SCOPES = ["https://www.googleapis.com/auth/calendar"]
 config = configparser.ConfigParser()
 DEV_SETTINGS = os.path.join(BASE_DIR, "config/dev_settings.ini")
 SETTINGS = os.path.join(BASE_DIR, "config/settings.ini")
+log_file = os.path.join(BASE_DIR, "bot.log")
 CURR_SETTINGS = ""
 if os.path.isfile(DEV_SETTINGS):
     config.read(DEV_SETTINGS)
@@ -90,6 +95,14 @@ global_event_id = {}
 logger = telebot.logger
 telebot.logger.setLevel(logging.WARNING)
 # telebot.logger.setLevel(logging.DEBUG)
+
+
+def add_log(msg_text, msg_type="info", log_file=log_file):
+    """Функция добавления лога msg_text со статусом msg_type в файл log_file"""
+
+    with io.open(log_file, "a", encoding="utf-8") as f:
+        record = f'\n[{datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")}] {msg_type.upper()}: {msg_text}'
+        f.write(record)
 
 
 def convert_schedule_json_to_text(json_file):
@@ -226,10 +239,10 @@ def type_to_rus(eng_type, case="nominative"):
     #     return 0  # Событие, не созданное ботом
 
 
-def add_event(call, appointment_type, appointment_mode, appointment_day, appointment_time, user_data_for_join):
+def add_event(call, appointment_type, appointment_mode, appointment_day, appointment_time, user: UserData):
     duration = 60 if appointment_type == "single" else 90
-    appointment_summary = f"{user_data_for_join[call.message.chat.id]['name']} \
-{user_data_for_join[call.message.chat.id]['surname']}"
+    appointment_summary = f"{user.name} \
+{user.lastname}"
     t = time.strptime(appointment_time, "%H:%M")
     ts = (
         datetime.datetime.strptime(appointment_day, "%Y-%m-%d") + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
@@ -255,9 +268,9 @@ def add_event(call, appointment_type, appointment_mode, appointment_day, appoint
     event = calendar.create_event_dict(
         event_type=event_type,
         summary=appointment_summary,
-        description=f"<b>telegram:</b> @{call.message.chat.username}\n\
-<b>Имя:</b> {user_data_for_join[call.message.chat.id]['name']}\n\
-<b>Фамилия:</b> {user_data_for_join[call.message.chat.id]['surname']}",
+        description=f"<b>telegram:</b> @{user.tg_username}\n\
+<b>Имя:</b> {user.name}\n\
+<b>Фамилия:</b> {user.lastname}",
         start=ts,
         end=te,
         colorId=color,
@@ -501,36 +514,41 @@ def show_info(call: CallbackQuery):
 
 
 # ====== Блок прохождения опроса ========
+
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith("enroll_start_appointment"))
-def set_name(call: CallbackQuery):
-    global user_data_for_join
-    user_data_for_join[call.message.chat.id] = {}
-    # msg_instance = bot.send_message(call.message.chat.id, "Укажите Ваше имя")
-    msg_instance = bot.edit_message_text(
-        chat_id=call.message.chat.id,
-        message_id=call.message.message_id,
-        text="Укажите Ваше имя",
-        parse_mode="html",
-    )
-    bot.register_next_step_handler(msg_instance, set_surname)
+def check_user_or_set_name(call: CallbackQuery):
+    curr_user = DBot(engine).get_user(call.from_user.username)
+    if curr_user:
+        set_enroll_type(call.message, curr_user[0])
+    else:
+        new_user = UserData()
+        new_user.tg_username = call.from_user.username
+        new_user.tg_chat_id = call.from_user.id
+        msg_instance = bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text="Укажите Ваше имя",
+            parse_mode="html",
+        )
+        bot.register_next_step_handler(
+            msg_instance,
+            set_lastname,
+            new_user,
+        )
 
 
-def set_surname(message):
+def set_lastname(message, new_user):
+    new_user.name = message.text
     msg_instance = bot.send_message(message.chat.id, "Укажите Вашу фамилию")
-    user_data_for_join[message.chat.id] = {"name": message.text}
-    # bot.register_next_step_handler(msg_instance, set_email)
-    bot.register_next_step_handler(msg_instance, set_enroll_type)
+    bot.register_next_step_handler(msg_instance, set_enroll_type, new_user)
 
 
-# def set_email(message):
-#     msg_instance = bot.send_message(message.chat.id, "Укажите Ваш e-mail")
-#     user_data_for_join[message.chat.id]["surname"] = message.text
-#     bot.register_next_step_handler(msg_instance, set_enroll_type)
-
-
-def set_enroll_type(message):
-    # if validators.email(message.text):
-    user_data_for_join[message.chat.id]["surname"] = message.text
+def set_enroll_type(message, user):
+    if not user.lastname:
+        user.lastname = message.text
+        new_user = DBot(engine).add_user(user)
+        add_log(f"Добавлен новый пользователь id={new_user.id} username={new_user.tg_username}")
     keyboard = InlineKeyboardMarkup()
     keyboard.row(
         InlineKeyboardButton("Индивидуальная онлайн", callback_data="enroll_type_online_single"),
@@ -549,12 +567,6 @@ def set_enroll_type(message):
         reply_markup=keyboard,
         parse_mode="html",
     )
-    # else:
-    #     bot.send_message(
-    #         message.chat.id,
-    #         "Некорректный email. Попробуйте ввести еще раз (example@mail.ru)",
-    #     )
-    #     bot.register_next_step_handler(message, set_enroll_type)
 
 
 # ====== Конец блока прохождения опроса ========
@@ -875,17 +887,18 @@ def set_appointment(call: CallbackQuery):
     appointment_type = call.data.split("::")[1]
     appointment_day = call.data.split("::")[2].split()[0]
     appointment_time = call.data.split("::")[3]
+    user = DBot(engine).get_user(call.from_user.username)
     if appointment_type == "online_single":
-        event = add_event(call, "single", "online", appointment_day, appointment_time, user_data_for_join)
+        event = add_event(call, "single", "online", appointment_day, appointment_time, user[0])
         send_event_info(call, event)
     if appointment_type == "offline_single":
-        event = add_event(call, "single", "offline", appointment_day, appointment_time, user_data_for_join)
+        event = add_event(call, "single", "offline", appointment_day, appointment_time, user[0])
         send_event_info(call, event)
     if appointment_type == "online_dual":
-        event = add_event(call, "dual", "online", appointment_day, appointment_time, user_data_for_join)
+        event = add_event(call, "dual", "online", appointment_day, appointment_time, user[0])
         send_event_info(call, event)
     if appointment_type == "offline_dual":
-        event = add_event(call, "dual", "offline", appointment_day, appointment_time, user_data_for_join)
+        event = add_event(call, "dual", "offline", appointment_day, appointment_time, user[0])
         send_event_info(call, event)
 
 
@@ -968,8 +981,7 @@ def edit_appointment(call: CallbackQuery):
 {datetime.datetime.fromisoformat(event["end"]["dateTime"]).strftime("%H:%M")}'
                 keyboard.add(
                     InlineKeyboardButton(
-                        f"{e_type} консультация {e_date} {e_time}",
-                        callback_data=f'event::{event["id"]}'
+                        f"{e_type} консультация {e_date} {e_time}", callback_data=f'event::{event["id"]}'
                     ),
                 )
             bot.edit_message_text(
@@ -1492,33 +1504,33 @@ def move_appointment(call: CallbackQuery):
 
 
 def main():
-    try:
-        while True:
-            try:
-                bot.polling(non_stop=True)
-            except (
-                ReadTimeout,
-                ReadTimeoutError,
-                TimeoutError,
-                RemoteDisconnected,
-                ProtocolError,
-                ConnectionError,
-            ):
-                time.sleep(5)
-                continue
-    except KeyboardInterrupt:
-        sys.exit()
     # try:
-    #     bot.polling(non_stop=True)
-    # except (
-    #     ReadTimeout,
-    #     ReadTimeoutError,
-    #     TimeoutError,
-    #     RemoteDisconnected,
-    #     ProtocolError,
-    #     ConnectionError,
-    # ):
-    #     time.sleep(5)
+    #     while True:
+    #         try:
+    #             bot.polling(non_stop=True)
+    #         except (
+    #             ReadTimeout,
+    #             ReadTimeoutError,
+    #             TimeoutError,
+    #             RemoteDisconnected,
+    #             ProtocolError,
+    #             ConnectionError,
+    #         ):
+    #             time.sleep(5)
+    #             continue
+    # except KeyboardInterrupt:
+    #     sys.exit()
+    try:
+        bot.polling(non_stop=True)
+    except (
+        ReadTimeout,
+        ReadTimeoutError,
+        TimeoutError,
+        RemoteDisconnected,
+        ProtocolError,
+        ConnectionError,
+    ):
+        time.sleep(5)
 
 
 if __name__ == "__main__":
