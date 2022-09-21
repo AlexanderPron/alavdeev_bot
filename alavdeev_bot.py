@@ -89,7 +89,6 @@ move_enroll_offline_single_cb = CallbackData("move_enroll_offline_single", "acti
 move_enroll_online_dual_cb = CallbackData("move_enroll_online_dual", "action", "year", "month", "day")
 move_enroll_offline_dual_cb = CallbackData("move_enroll_offline_dual", "action", "year", "month", "day")
 
-user_data_for_join = {}
 global_event_id = {}
 
 logger = telebot.logger
@@ -518,7 +517,7 @@ def show_info(call: CallbackQuery):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("enroll_start_appointment"))
 def check_user_or_set_name(call: CallbackQuery):
-    curr_user = DBot(engine).get_user(call.from_user.username)
+    curr_user = DBot(engine).get_user(tg_chat_id=call.from_user.id)
     if curr_user:
         set_enroll_type(call.message, curr_user[0])
     else:
@@ -887,7 +886,7 @@ def set_appointment(call: CallbackQuery):
     appointment_type = call.data.split("::")[1]
     appointment_day = call.data.split("::")[2].split()[0]
     appointment_time = call.data.split("::")[3]
-    user = DBot(engine).get_user(call.from_user.username)
+    user = DBot(engine).get_user(tg_chat_id=call.from_user.id)
     if appointment_type == "online_single":
         event = add_event(call, "single", "online", appointment_day, appointment_time, user[0])
         send_event_info(call, event)
@@ -1438,8 +1437,8 @@ def move_appointment(call: CallbackQuery):
     appointment_type = call.data.split("::")[1]
     appointment_day = call.data.split("::")[2].split()[0]
     appointment_time = call.data.split("::")[3]
+    event = calendar.get_event(global_event_id[call.message.chat.id])
     if appointment_type == "online_single":
-        event = calendar.get_event(global_event_id[call.message.chat.id])
         t = time.strptime(appointment_time, "%H:%M")
         ts = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
@@ -1451,10 +1450,7 @@ def move_appointment(call: CallbackQuery):
         ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
         event["start"]["dateTime"] = ts
         event["end"]["dateTime"] = te
-        calendar.event_edit(global_event_id[call.message.chat.id], event)
-        send_move_event_info(call, event)
     if appointment_type == "offline_single":
-        event = calendar.get_event(global_event_id[call.message.chat.id])
         t = time.strptime(appointment_time, "%H:%M")
         ts = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
@@ -1466,10 +1462,7 @@ def move_appointment(call: CallbackQuery):
         ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
         event["start"]["dateTime"] = ts
         event["end"]["dateTime"] = te
-        calendar.event_edit(global_event_id[call.message.chat.id], event)
-        send_move_event_info(call, event)
     if appointment_type == "online_dual":
-        event = calendar.get_event(global_event_id[call.message.chat.id])
         t = time.strptime(appointment_time, "%H:%M")
         ts = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
@@ -1481,10 +1474,7 @@ def move_appointment(call: CallbackQuery):
         ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
         event["start"]["dateTime"] = ts
         event["end"]["dateTime"] = te
-        calendar.event_edit(global_event_id[call.message.chat.id], event)
-        send_move_event_info(call, event)
     if appointment_type == "offline_dual":
-        event = calendar.get_event(global_event_id[call.message.chat.id])
         t = time.strptime(appointment_time, "%H:%M")
         ts = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
@@ -1496,8 +1486,8 @@ def move_appointment(call: CallbackQuery):
         ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
         event["start"]["dateTime"] = ts
         event["end"]["dateTime"] = te
-        calendar.event_edit(global_event_id[call.message.chat.id], event)
-        send_move_event_info(call, event)
+    calendar.event_edit(global_event_id[call.message.chat.id], event)
+    send_move_event_info(call, event)
 
 
 # =============КОНЕЦ блока переноса записи=======================

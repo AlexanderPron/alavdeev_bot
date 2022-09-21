@@ -42,11 +42,19 @@ class DBot(object):
         self.session.refresh(new_user)
         return new_user
 
-    def get_user(self, tg_username):
-        try:
-            user = self.session.query(Users).filter(Users.tg_username == tg_username)
-        except MultipleResultsFound:
-            return False
-        except NoResultFound:
-            return False
+    def get_user(self, tg_username=None, tg_chat_id=None):
+        if tg_username:
+            try:
+                user = self.session.query(Users).filter(Users.tg_username == tg_username)
+            except MultipleResultsFound:
+                return False
+            except NoResultFound:
+                return False
+        if tg_chat_id:
+            try:
+                user = self.session.query(Users).filter(Users.tg_chat_id == tg_chat_id)
+            except MultipleResultsFound:
+                return False
+            except NoResultFound:
+                return False
         return user_record_to_userdata(user)
