@@ -363,7 +363,7 @@ def check_date(date, schedule, appointment_type):
         day_time_dict = type_schedule.get(str(day), {})
         return day_time_dict if day_time_dict else False
     else:
-        print("В json-расписании нет раздела online")  # TODO Сделать вывод  warning в лог файл
+        add_log(f"В json-расписании(файл {schedule}) нет раздела {type_schedule}", "warning")
         return False
 
 
@@ -983,6 +983,7 @@ def edit_appointment(call: CallbackQuery):
                         f"{e_type} консультация {e_date} {e_time}", callback_data=f'event::{event["id"]}'
                     ),
                 )
+            keyboard.add(InlineKeyboardButton("Отменить все записи", callback_data="delete_all"))
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
@@ -1042,6 +1043,39 @@ def event_detail(call: CallbackQuery):
         parse_mode="html",
         reply_markup=keyboard,
     )
+
+
+@bot.callback_query_handler(func=lambda call: call.data == "delete_all")
+def delete_all_events(call: CallbackQuery):
+    keyboard = InlineKeyboardMarkup(row_width=1)
+    events = calendar.get_user_events_list(call.message.chat.username)
+    deleted_events_list = [
+        "<b>Отмена записей:</b>",
+    ]
+    i = 1
+    if events:
+        for event in events:
+            e_type = type_to_rus(event["extendedProperties"]["private"]["type"]).split()[1].capitalize()
+            e_date = str(datetime.datetime.fromisoformat(event["start"]["dateTime"]).date())
+            e_time = f'{datetime.datetime.fromisoformat(event["start"]["dateTime"]).strftime("%H:%M")} - \
+{datetime.datetime.fromisoformat(event["end"]["dateTime"]).strftime("%H:%M")}'
+            calendar.delete_event(event.get("id", ""))
+            deleted_events_list.append(f"{i}) {e_type} консультация {e_date} {e_time}")
+            i += 1
+        deleted_events_info = "\n".join(deleted_events_list)
+        keyboard.add(InlineKeyboardButton("В начало", callback_data="info_appointment_START"))
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text="<b>Все Ваши записи отменены</b>",
+            parse_mode="html",
+            reply_markup=keyboard,
+        )
+        bot.send_message(
+            MANAGER_ID,
+            text=deleted_events_info,
+            parse_mode="html",
+        )
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("event_cancel::"))
