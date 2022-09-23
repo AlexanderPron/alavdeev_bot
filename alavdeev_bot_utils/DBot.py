@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from bot_models import Users
-from botObjects import UserData
+from sqlalchemy.orm import Session
+from alavdeev_bot_utils.bot_models import Users
+from alavdeev_bot_utils.botObjects import UserData
 from sqlalchemy.exc import (
     MultipleResultsFound,
     NoResultFound,
