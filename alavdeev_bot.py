@@ -200,15 +200,27 @@ def set_enroll_type(message, user):
         InlineKeyboardButton("Индивидуальная очно", callback_data="enroll_type_offline_single"),
         InlineKeyboardButton("Парная очно", callback_data="enroll_type_offline_dual"),
     )
-    bot.send_message(
-        chat_id=message.chat.id,
-        text="Вы хотите записаться на консультацию онлайн или встретиться с со мной очно?\n\n\
+    try:
+        bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=message.message_id,
+            text="Вы хотите записаться на консультацию онлайн или встретиться с со мной очно?\n\n\
 Также хочу предупредить, что очный формат доступен только <b>по вторникам и четвергам с 15:30 до 22:00</b>\n\n\
 Длительность индивидуальных консультаций - <b>60 минут</b> \n\
 Длительность парных консультаций - <b>90 минут</b>",
-        reply_markup=keyboard,
-        parse_mode="html",
-    )
+            reply_markup=keyboard,
+            parse_mode="html",
+        )
+    except ApiTelegramException:
+        bot.send_message(
+            chat_id=message.chat.id,
+            text="Вы хотите записаться на консультацию онлайн или встретиться с со мной очно?\n\n\
+Также хочу предупредить, что очный формат доступен только <b>по вторникам и четвергам с 15:30 до 22:00</b>\n\n\
+Длительность индивидуальных консультаций - <b>60 минут</b> \n\
+Длительность парных консультаций - <b>90 минут</b>",
+            reply_markup=keyboard,
+            parse_mode="html",
+        )
 
 
 # ====== Конец блока прохождения опроса ========
