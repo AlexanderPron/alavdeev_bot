@@ -190,7 +190,7 @@ def send_event_info(call, event):
         InlineKeyboardButton("Да, раз в две недели", callback_data=f"recurrence_yes_onetime2week::{e_id}"),
     )
     keyboard.row(
-        InlineKeyboardButton("Нет", callback_data="info_appointment_START"),
+        InlineKeyboardButton("Нет", callback_data=f"info_appointment_START::{appointment_day}::{time}"),
     )
     bot.edit_message_text(
         chat_id=call.message.chat.id,

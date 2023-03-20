@@ -46,7 +46,8 @@ class GoogleCalendar(object):
         return e
 
     def create_multiply_event(self, event, datetime_list=[]):
-        """Метод для добавления повторяющегося события по списку дат вида [{"start": "start_datetime", "end": "end_datetime"}].
+        """Метод для добавления повторяющегося события по списку дат вида
+        [{"start": "start_datetime", "end": "end_datetime"}].
         Возвращает список успешно созданных событий.
         Если дата и время уже заняты в календаре, то событие не добавляется"""
 

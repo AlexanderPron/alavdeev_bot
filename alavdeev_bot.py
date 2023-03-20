@@ -21,8 +21,8 @@ import time
 import logging
 import os.path
 import io
+import sys
 from alavdeev_bot_utils.telebot_calendar import Calendar, RUSSIAN_LANGUAGE, CallbackData
-import telebot
 from alavdeev_bot_utils.googleCalendar import GoogleCalendar
 from alavdeev_bot_utils.constants import *
 from alavdeev_bot_utils.funcs import *
@@ -151,8 +151,35 @@ def show_info(call: CallbackQuery):
             parse_mode="html",
             reply_markup=keyboard,
         )
-    if call.data == "info_appointment_START":
-        start_cmd(call.message)
+    if call.data.startswith("info_appointment_START"):
+        if len(call.data.split('::')) > 1:
+            app_date = call.data.split('::')[1]
+            app_time = call.data.split('::')[2]
+            start_keyboard = InlineKeyboardMarkup()
+            start_keyboard.row(
+                InlineKeyboardButton("Информация", callback_data="info_get"),
+                InlineKeyboardButton("Записаться", callback_data="enroll_start_appointment"),
+            )
+            start_keyboard.row(
+                InlineKeyboardButton("Редактировать запись", callback_data="edit_appointment"),
+            )
+            try:
+                bot.edit_message_text(
+                    chat_id=call.message.chat.id,
+                    message_id=call.message.message_id,
+                    text=f"Вы записались на консультацию {app_date} в {app_time}",
+                    parse_mode="html",
+                    reply_markup=start_keyboard,
+                )
+            except ApiTelegramException:
+                bot.send_message(
+                    chat_id=call.message.chat.id,
+                    text=f"Вы записались на консультацию {app_date} в {app_time}",
+                    parse_mode="html",
+                    reply_markup=start_keyboard,
+                )
+        else:
+            start_cmd(call.message)
 
 
 # ====== Блок прохождения опроса ========
@@ -196,28 +223,29 @@ def set_enroll_type(message, user):
         InlineKeyboardButton("Индивидуальная онлайн", callback_data="enroll_type_online_single"),
         InlineKeyboardButton("Парная онлайн", callback_data="enroll_type_online_dual"),
     )
-    keyboard.row(
-        InlineKeyboardButton("Индивидуальная очно", callback_data="enroll_type_offline_single"),
-        InlineKeyboardButton("Парная очно", callback_data="enroll_type_offline_dual"),
-    )
+    # keyboard.row(
+    #     InlineKeyboardButton("Индивидуальная очно", callback_data="enroll_type_offline_single"),
+    #     InlineKeyboardButton("Парная очно", callback_data="enroll_type_offline_dual"),
+    # )
+#     text_old = "Вы хотите записаться на консультацию онлайн или встретиться с со мной очно?\n\n\
+# Также хочу предупредить, что очный формат доступен только <b>по вторникам и четвергам с 15:30 до 22:00</b>\n\n\
+# Длительность индивидуальных консультаций - <b>60 минут</b> \n\
+# Длительность парных консультаций - <b>90 минут</b>"
+    text_new = "Вы хотите записаться на индивидуальную или парную консультацию?\n\n\
+Длительность индивидуальных консультаций - <b>60 минут</b> \n\
+Длительность парных консультаций - <b>90 минут</b>"
     try:
         bot.edit_message_text(
             chat_id=message.chat.id,
             message_id=message.message_id,
-            text="Вы хотите записаться на консультацию онлайн или встретиться с со мной очно?\n\n\
-Также хочу предупредить, что очный формат доступен только <b>по вторникам и четвергам с 15:30 до 22:00</b>\n\n\
-Длительность индивидуальных консультаций - <b>60 минут</b> \n\
-Длительность парных консультаций - <b>90 минут</b>",
+            text=text_new,
             reply_markup=keyboard,
             parse_mode="html",
         )
     except ApiTelegramException:
         bot.send_message(
             chat_id=message.chat.id,
-            text="Вы хотите записаться на консультацию онлайн или встретиться с со мной очно?\n\n\
-Также хочу предупредить, что очный формат доступен только <b>по вторникам и четвергам с 15:30 до 22:00</b>\n\n\
-Длительность индивидуальных консультаций - <b>60 минут</b> \n\
-Длительность парных консультаций - <b>90 минут</b>",
+            text=text_new,
             reply_markup=keyboard,
             parse_mode="html",
         )
@@ -1183,33 +1211,33 @@ def move_appointment(call: CallbackQuery):
 
 
 def main():
-    # try:
-    #     while True:
-    #         try:
-    #             bot.polling(non_stop=True)
-    #         except (
-    #             ReadTimeout,
-    #             ReadTimeoutError,
-    #             TimeoutError,
-    #             RemoteDisconnected,
-    #             ProtocolError,
-    #             ConnectionError,
-    #         ):
-    #             time.sleep(5)
-    #             continue
-    # except KeyboardInterrupt:
-    #     sys.exit()
     try:
-        bot.polling(non_stop=True)
-    except (
-        ReadTimeout,
-        ReadTimeoutError,
-        TimeoutError,
-        RemoteDisconnected,
-        ProtocolError,
-        ConnectionError,
-    ):
-        time.sleep(5)
+        while True:
+            try:
+                bot.polling(non_stop=True)
+            except (
+                ReadTimeout,
+                ReadTimeoutError,
+                TimeoutError,
+                RemoteDisconnected,
+                ProtocolError,
+                ConnectionError,
+            ):
+                time.sleep(5)
+                continue
+    except KeyboardInterrupt:
+        sys.exit()
+    # try:
+    #     bot.polling(non_stop=True)
+    # except (
+    #     ReadTimeout,
+    #     ReadTimeoutError,
+    #     TimeoutError,
+    #     RemoteDisconnected,
+    #     ProtocolError,
+    #     ConnectionError,
+    # ):
+    #     time.sleep(5)
 
 
 if __name__ == "__main__":
