@@ -595,16 +595,16 @@ def appointment_recurrence_yes(call: CallbackQuery):
         created_events_list = calendar.create_multiply_event(
             event,
             get_next_3_weeks_date(
-                datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00"),
-                datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00"),
+                datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"),
+                datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"),
             ),
         )
     elif call.data.split("::")[0] == "recurrence_yes_onetime2week":
         created_events_list = calendar.create_multiply_event(
             event,
             get_onetime2week_date(
-                datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00"),
-                datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00"),
+                datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"),
+                datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"),
             ),
         )
     i = 0
@@ -1160,11 +1160,11 @@ def move_appointment(call: CallbackQuery):
         ts = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
-        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        ).strftime("%Y-%m-%dT%H:%M:%S%z")
         te = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + 60)
-        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        ).strftime("%Y-%m-%dT%H:%M:%S%z")
         event["start"]["dateTime"] = ts
         event["end"]["dateTime"] = te
     if appointment_type == "offline_single":
@@ -1172,11 +1172,11 @@ def move_appointment(call: CallbackQuery):
         ts = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
-        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        ).strftime("%Y-%m-%dT%H:%M:%S%z")
         te = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + 60)
-        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        ).strftime("%Y-%m-%dT%H:%M:%S%z")
         event["start"]["dateTime"] = ts
         event["end"]["dateTime"] = te
     if appointment_type == "online_dual":
@@ -1184,11 +1184,11 @@ def move_appointment(call: CallbackQuery):
         ts = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
-        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        ).strftime("%Y-%m-%dT%H:%M:%S%z")
         te = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + 90)
-        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        ).strftime("%Y-%m-%dT%H:%M:%S%z")
         event["start"]["dateTime"] = ts
         event["end"]["dateTime"] = te
     if appointment_type == "offline_dual":
@@ -1196,11 +1196,11 @@ def move_appointment(call: CallbackQuery):
         ts = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
-        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        ).strftime("%Y-%m-%dT%H:%M:%S%z")
         te = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + 90)
-        ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        ).strftime("%Y-%m-%dT%H:%M:%S%z")
         event["start"]["dateTime"] = ts
         event["end"]["dateTime"] = te
     calendar.event_edit(global_event_id[call.message.chat.id], event)
@@ -1211,33 +1211,33 @@ def move_appointment(call: CallbackQuery):
 
 
 def main():
-    try:
-        while True:
-            try:
-                bot.polling(non_stop=True)
-            except (
-                ReadTimeout,
-                ReadTimeoutError,
-                TimeoutError,
-                RemoteDisconnected,
-                ProtocolError,
-                ConnectionError,
-            ):
-                time.sleep(5)
-                continue
-    except KeyboardInterrupt:
-        sys.exit()
     # try:
-    #     bot.polling(non_stop=True)
-    # except (
-    #     ReadTimeout,
-    #     ReadTimeoutError,
-    #     TimeoutError,
-    #     RemoteDisconnected,
-    #     ProtocolError,
-    #     ConnectionError,
-    # ):
-    #     time.sleep(5)
+    #     while True:
+    #         try:
+    #             bot.polling(non_stop=True)
+    #         except (
+    #             ReadTimeout,
+    #             ReadTimeoutError,
+    #             TimeoutError,
+    #             RemoteDisconnected,
+    #             ProtocolError,
+    #             ConnectionError,
+    #         ):
+    #             time.sleep(5)
+    #             continue
+    # except KeyboardInterrupt:
+    #     sys.exit()
+    try:
+        bot.polling(non_stop=True)
+    except (
+        ReadTimeout,
+        ReadTimeoutError,
+        TimeoutError,
+        RemoteDisconnected,
+        ProtocolError,
+        ConnectionError,
+    ):
+        time.sleep(5)
 
 
 if __name__ == "__main__":

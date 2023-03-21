@@ -68,8 +68,8 @@ def convert_schedule_json_to_text(json_file):
 def get_free_time_slots(free_time_list, duration):
     available_start_time_list = []
     for free_time_inteval in free_time_list:
-        start = datetime.datetime.strptime(free_time_inteval["start"], "%Y-%m-%dT%H:%M:%S+03:00")
-        end = datetime.datetime.strptime(free_time_inteval["end"], "%Y-%m-%dT%H:%M:%S+03:00")
+        start = datetime.datetime.strptime(free_time_inteval["start"], "%Y-%m-%dT%H:%M:%S%z")
+        end = datetime.datetime.strptime(free_time_inteval["end"], "%Y-%m-%dT%H:%M:%S%z")
         free_minutes = (end - start).total_seconds() / 60
         if free_minutes < duration:
             continue
@@ -144,11 +144,11 @@ def add_event(call, appointment_type, appointment_mode, appointment_day, appoint
     t = time.strptime(appointment_time, "%H:%M")
     ts = (
         datetime.datetime.strptime(appointment_day, "%Y-%m-%d") + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
-    ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+    ).strftime("%Y-%m-%dT%H:%M:%S%z")
     te = (
         datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
         + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + duration)
-    ).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+    ).strftime("%Y-%m-%dT%H:%M:%S%z")
 
     if appointment_type == "single" and appointment_mode == "online":
         color = "1"
@@ -272,8 +272,8 @@ def get_next_3_weeks_date(start_datetime, end_datetime):
     lst = []
     for i in range(1, 4):
         dic = {
-            "start": (start_datetime + datetime.timedelta(days=i * 7)).strftime("%Y-%m-%dT%H:%M:%S+03:00"),
-            "end": (end_datetime + datetime.timedelta(days=i * 7)).strftime("%Y-%m-%dT%H:%M:%S+03:00"),
+            "start": (start_datetime + datetime.timedelta(days=i * 7)).strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "end": (end_datetime + datetime.timedelta(days=i * 7)).strftime("%Y-%m-%dT%H:%M:%S%z"),
         }
         lst.append(dic)
     return lst
@@ -285,8 +285,8 @@ def get_onetime2week_date(start_datetime, end_datetime):
     lst = []
     for i in range(1, 4):
         dic = {
-            "start": (start_datetime + datetime.timedelta(days=i * 14)).strftime("%Y-%m-%dT%H:%M:%S+03:00"),
-            "end": (end_datetime + datetime.timedelta(days=i * 14)).strftime("%Y-%m-%dT%H:%M:%S+03:00"),
+            "start": (start_datetime + datetime.timedelta(days=i * 14)).strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "end": (end_datetime + datetime.timedelta(days=i * 14)).strftime("%Y-%m-%dT%H:%M:%S%z"),
         }
         lst.append(dic)
     return lst
@@ -298,5 +298,5 @@ def check_24h(e_id):
     Возвращает True если событие произойдет более, чем через 24 часа, иначе - False"""
 
     event_inst = calendar.get_event(e_id)
-    event_dt = datetime.datetime.strptime(event_inst["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S+03:00")
+    event_dt = datetime.datetime.strptime(event_inst["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z")
     return False if (event_dt - datetime.datetime.now()) <= datetime.timedelta(hours=24) else True

@@ -8,6 +8,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import googleapiclient
 from google.oauth2 import service_account
+from pytz import timezone
 
 
 class GoogleCalendar(object):
@@ -54,7 +55,7 @@ class GoogleCalendar(object):
         created_event_list = []
         if datetime_list:
             for dt in datetime_list:
-                day = datetime.datetime.strptime(dt["start"], "%Y-%m-%dT%H:%M:%S+03:00")
+                day = datetime.datetime.strptime(dt["start"], "%Y-%m-%dT%H:%M:%S%z")
                 free_time_list = self.get_free_daytime(day.replace(hour=0, minute=0))
                 for free_time in free_time_list:
                     if dt["start"] >= free_time["start"] and dt["end"] <= free_time["end"]:
@@ -76,7 +77,12 @@ class GoogleCalendar(object):
         return created_event_list
 
     def get_user_events_list(self, tg_username):
-        now = datetime.datetime.now().isoformat() + "+03:00"
+        calendar_inst = self.service.calendars().get(calendarId=self.calendarId).execute()
+        # tz = timezone(calendar_inst["timeZone"])
+        # offset = tz.utcoffset(datetime.datetime.now())
+        # tz_str = str(offset)[:len(str(offset))-3]
+        now = datetime.datetime.now().isoformat()
+        print(now)
         events_result = (
             self.service.events()
             .list(
@@ -97,8 +103,8 @@ class GoogleCalendar(object):
         return self.service.events().get(calendarId=self.calendarId, eventId=e_id).execute()
 
     def get_day_events(self, day):
-        day_0 = day.strftime("%Y-%m-%dT%H:%M:%S+03:00")
-        day_24 = (day + datetime.timedelta(hours=23, minutes=59, seconds=59)).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        day_0 = day.strftime("%Y-%m-%dT%H:%M:%S%z")
+        day_24 = (day + datetime.timedelta(hours=23, minutes=59, seconds=59)).strftime("%Y-%m-%dT%H:%M:%S%z")
         events_result = (
             self.service.events()
             .list(
@@ -125,8 +131,8 @@ class GoogleCalendar(object):
         empty_time_list = []
         t1 = time.strptime(time_start, "%H:%M")  # TODO Сделать проверку на коректность ввода времени try except
         t2 = time.strptime(time_end, "%H:%M")
-        ts = (day + datetime.timedelta(hours=t1.tm_hour, minutes=t1.tm_min)).strftime("%Y-%m-%dT%H:%M:%S+03:00")
-        te = (day + datetime.timedelta(hours=t2.tm_hour, minutes=t2.tm_min)).strftime("%Y-%m-%dT%H:%M:%S+03:00")
+        ts = (day + datetime.timedelta(hours=t1.tm_hour, minutes=t1.tm_min)).strftime("%Y-%m-%dT%H:%M:%S%z")
+        te = (day + datetime.timedelta(hours=t2.tm_hour, minutes=t2.tm_min)).strftime("%Y-%m-%dT%H:%M:%S%z")
         query_body = {"timeMin": ts, "timeMax": te, "timeZone": "Europe/Moscow", "items": [{"id": self.calendarId}]}
         busy_info = self.service.freebusy().query(body=query_body).execute()
         busy_time_list = busy_info.get("calendars").get(self.calendarId).get("busy", [])
