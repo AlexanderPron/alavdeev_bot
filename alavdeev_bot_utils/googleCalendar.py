@@ -78,11 +78,8 @@ class GoogleCalendar(object):
 
     def get_user_events_list(self, tg_username):
         calendar_inst = self.service.calendars().get(calendarId=self.calendarId).execute()
-        # tz = timezone(calendar_inst["timeZone"])
-        # offset = tz.utcoffset(datetime.datetime.now())
-        # tz_str = str(offset)[:len(str(offset))-3]
-        now = datetime.datetime.now().isoformat()
-        print(now)
+        tz = timezone(calendar_inst["timeZone"])
+        now = datetime.datetime.now(tz).isoformat()
         events_result = (
             self.service.events()
             .list(
@@ -129,11 +126,19 @@ class GoogleCalendar(object):
         # TODO Описать формат day
 
         empty_time_list = []
+        calendar_inst = self.service.calendars().get(calendarId=self.calendarId).execute()
+        dt = datetime.datetime.now(timezone(calendar_inst["timeZone"]))
+        f = timezone(calendar_inst["timeZone"]).localize(dt, is_dst=None)
+        print(f)
+        tz = dt.strftime('%z')
         t1 = time.strptime(time_start, "%H:%M")  # TODO Сделать проверку на коректность ввода времени try except
         t2 = time.strptime(time_end, "%H:%M")
-        ts = (day + datetime.timedelta(hours=t1.tm_hour, minutes=t1.tm_min)).strftime("%Y-%m-%dT%H:%M:%S%z")
-        te = (day + datetime.timedelta(hours=t2.tm_hour, minutes=t2.tm_min)).strftime("%Y-%m-%dT%H:%M:%S%z")
-        query_body = {"timeMin": ts, "timeMax": te, "timeZone": "Europe/Moscow", "items": [{"id": self.calendarId}]}
+        ts = (day + datetime.timedelta(hours=t1.tm_hour, minutes=t1.tm_min)).replace(tzinfo=timezone(calendar_inst["timeZone"])).strftime("%Y-%m-%dT%H:%M:%S%z")
+        te = (day + datetime.timedelta(hours=t2.tm_hour, minutes=t2.tm_min)).replace(tzinfo=timezone(calendar_inst["timeZone"])).strftime("%Y-%m-%dT%H:%M:%S%z")
+        # print(day)
+        # print(ts)
+        # print(te)
+        query_body = {"timeMin": ts, "timeMax": te, "timeZone": tz, "items": [{"id": self.calendarId}]}
         busy_info = self.service.freebusy().query(body=query_body).execute()
         busy_time_list = busy_info.get("calendars").get(self.calendarId).get("busy", [])
         dic = {}
