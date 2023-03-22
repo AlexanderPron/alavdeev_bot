@@ -127,10 +127,11 @@ class GoogleCalendar(object):
 
         empty_time_list = []
         calendar_inst = self.service.calendars().get(calendarId=self.calendarId).execute()
-        dt = datetime.datetime.now(timezone(calendar_inst["timeZone"]))
-        f = timezone(calendar_inst["timeZone"]).localize(dt, is_dst=None)
-        print(f)
+        dt = datetime.datetime.now(timezone(calendar_inst["timeZone"])).isoformat()
+        # f = timezone(calendar_inst["timeZone"]).localize(dt, is_dst=None)
+        print(dt)
         tz = dt.strftime('%z')
+        print(tz)
         t1 = time.strptime(time_start, "%H:%M")  # TODO Сделать проверку на коректность ввода времени try except
         t2 = time.strptime(time_end, "%H:%M")
         ts = (day + datetime.timedelta(hours=t1.tm_hour, minutes=t1.tm_min)).replace(tzinfo=timezone(calendar_inst["timeZone"])).strftime("%Y-%m-%dT%H:%M:%S%z")

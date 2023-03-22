@@ -48,4 +48,6 @@ DEFAULT_ABOUT_TEXT = "<b>Алексей Авдеев. Психолог-конс�
 help_file = os.path.join(BASE_DIR, "data/help.txt")
 DEFAULT_HELP_TEXT = "Описания работы бота пока нет"
 
+DEFAULT_TIME_ZONE = "Europe/Moscow"
+
 global_event_id = {}

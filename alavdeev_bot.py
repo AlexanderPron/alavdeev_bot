@@ -22,6 +22,7 @@ import logging
 import os.path
 import io
 import sys
+from pytz import timezone
 from alavdeev_bot_utils.telebot_calendar import Calendar, RUSSIAN_LANGUAGE, CallbackData
 from alavdeev_bot_utils.googleCalendar import GoogleCalendar
 from alavdeev_bot_utils.constants import *
@@ -317,6 +318,7 @@ def calendar_online_single(call: CallbackQuery):
         month=month,
         day=day,
     )
+    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()

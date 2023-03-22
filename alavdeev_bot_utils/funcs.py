@@ -1,6 +1,7 @@
 from alavdeev_bot_utils.constants import (
     log_file,
     MANAGER_ID,
+    DEFAULT_TIME_ZONE,
 )
 from alavdeev_bot import bot, calendar
 from alavdeev_bot_utils.botObjects import UserData
@@ -12,6 +13,7 @@ import datetime
 import time
 import json
 import io
+from pytz import timezone
 
 
 def add_log(msg_text, msg_type="info", log_file=log_file):
@@ -253,7 +255,7 @@ def send_cancel_event_info(call, event):
 def check_date(date, schedule, appointment_type):
     """Функция возвращает False если день date не содержится в графике режима работы schedule,
     иначе возвращает словарь с начальным и конечным временем. Пример {"start":"10:00","end":"21:00"}"""
-    if datetime.datetime.now() > date:
+    if datetime.datetime.now(timezone(DEFAULT_TIME_ZONE)) > date:
         return False
     day = datetime.datetime.isoweekday(date)
     schedule_json_obj = json.loads(schedule)
