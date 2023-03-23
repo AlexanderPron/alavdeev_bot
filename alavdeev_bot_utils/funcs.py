@@ -26,7 +26,8 @@ def add_log(msg_text, msg_type="info", log_file=log_file):
 
 def convert_schedule_json_to_text(json_file):
     with io.open(json_file, "r", encoding="utf-8") as f:
-        text = "<b>Вы можете записаться на консультацию</b>\n"
+        text = "<b>Вы можете записаться на консультацию</b>\n\
+Обратите внимание - используется <b>московское время</b>"
         json_str = f.read()
         json_obj = json.loads(json_str)
         for sch_type in json_obj.keys():
@@ -139,7 +140,7 @@ def type_to_rus(eng_type, case="nominative"):
     return txt
 
 
-def add_event(call, appointment_type, appointment_mode, appointment_day, appointment_time, user: UserData):
+def add_event(appointment_type, appointment_mode, appointment_day, appointment_time, user: UserData):
     duration = 60 if appointment_type == "single" else 90
     appointment_summary = f"{user.name} \
 {user.lastname}"

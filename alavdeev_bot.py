@@ -589,16 +589,16 @@ def set_appointment(call: CallbackQuery):
     appointment_time = call.data.split("::")[3]
     user = DBot(engine).get_user(tg_chat_id=call.from_user.id)
     if appointment_type == "online_single":
-        event = add_event(call, "single", "online", appointment_day, appointment_time, user[0])
+        event = add_event("single", "online", appointment_day, appointment_time, user[0])
         send_event_info(call, event)
     if appointment_type == "offline_single":
-        event = add_event(call, "single", "offline", appointment_day, appointment_time, user[0])
+        event = add_event("single", "offline", appointment_day, appointment_time, user[0])
         send_event_info(call, event)
     if appointment_type == "online_dual":
-        event = add_event(call, "dual", "online", appointment_day, appointment_time, user[0])
+        event = add_event("dual", "online", appointment_day, appointment_time, user[0])
         send_event_info(call, event)
     if appointment_type == "offline_dual":
-        event = add_event(call, "dual", "offline", appointment_day, appointment_time, user[0])
+        event = add_event("dual", "offline", appointment_day, appointment_time, user[0])
         send_event_info(call, event)
 
 
@@ -610,20 +610,24 @@ def appointment_recurrence_yes(call: CallbackQuery):
     time = event["start"]["dateTime"].split("T")[1][:5]
     msg_datetime = datetime.datetime.fromtimestamp(call.message.date)
     if call.data.split("::")[0] == "recurrence_yes_everyweek":
+        next_3_weeks_events = get_next_3_weeks_date(
+            datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"),
+            datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"),
+        )
+        user_tz_datetime_events = convert_to_user_tz_time_list(next_3_weeks_events, timezone(DEFAULT_TIME_ZONE))
         created_events_list = calendar.create_multiply_event(
             event,
-            get_next_3_weeks_date(
-                datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"),
-                datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"),
-            ),
+            user_tz_datetime_events,
         )
     elif call.data.split("::")[0] == "recurrence_yes_onetime2week":
+        next_onetime2week_events = get_onetime2week_date(
+            datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"),
+            datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"),
+        )
+        user_tz_datetime_events = convert_to_user_tz_time_list(next_onetime2week_events, timezone(DEFAULT_TIME_ZONE))
         created_events_list = calendar.create_multiply_event(
             event,
-            get_onetime2week_date(
-                datetime.datetime.strptime(event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"),
-                datetime.datetime.strptime(event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"),
-            ),
+            user_tz_datetime_events,
         )
     i = 0
     events_info = ""
