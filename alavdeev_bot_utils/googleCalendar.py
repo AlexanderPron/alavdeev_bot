@@ -119,7 +119,7 @@ class GoogleCalendar(object):
         return events
 
     def get_free_daytime(self, day, time_start="0:0", time_end="23:59"):
-        """Метод для получения свободного времени в определённый день.
+        """Метод для получения свободного времени в определённый день day (Ex. 2023-03-24 00:00:00+03:00).
         Параметр time_start устанавливает начальное время (например, начало рабочего дня)
         Параметр time_end устанавливает конечное время (например, конец рабочего дня ).
         Если параметры time_start и time_end не заданы, то берутся полные сутки"""
@@ -127,19 +127,25 @@ class GoogleCalendar(object):
 
         empty_time_list = []
         calendar_inst = self.service.calendars().get(calendarId=self.calendarId).execute()
-        dt = datetime.datetime.now(timezone(calendar_inst["timeZone"])).isoformat()
-        # f = timezone(calendar_inst["timeZone"]).localize(dt, is_dst=None)
-        print(dt)
-        tz = dt.strftime('%z')
-        print(tz)
+        # tz = datetime.datetime.now(timezone(calendar_inst["timeZone"])).strftime("%z")  # google calendar timezone str
         t1 = time.strptime(time_start, "%H:%M")  # TODO Сделать проверку на коректность ввода времени try except
         t2 = time.strptime(time_end, "%H:%M")
-        ts = (day + datetime.timedelta(hours=t1.tm_hour, minutes=t1.tm_min)).replace(tzinfo=timezone(calendar_inst["timeZone"])).strftime("%Y-%m-%dT%H:%M:%S%z")
-        te = (day + datetime.timedelta(hours=t2.tm_hour, minutes=t2.tm_min)).replace(tzinfo=timezone(calendar_inst["timeZone"])).strftime("%Y-%m-%dT%H:%M:%S%z")
-        # print(day)
-        # print(ts)
-        # print(te)
-        query_body = {"timeMin": ts, "timeMax": te, "timeZone": tz, "items": [{"id": self.calendarId}]}
+        ts = (
+            day + datetime.timedelta(hours=t1.tm_hour, minutes=t1.tm_min)
+        ).astimezone(timezone(calendar_inst["timeZone"])).strftime("%Y-%m-%dT%H:%M:%S%z")
+        te = (
+            day + datetime.timedelta(hours=t2.tm_hour, minutes=t2.tm_min)
+        ).astimezone(timezone(calendar_inst["timeZone"])).strftime("%Y-%m-%dT%H:%M:%S%z")
+        query_body = {
+            "timeMin": ts,
+            "timeMax": te,
+            "timeZone": calendar_inst["timeZone"],
+            "items": [
+                {
+                    "id": self.calendarId,
+                },
+            ],
+        }
         busy_info = self.service.freebusy().query(body=query_body).execute()
         busy_time_list = busy_info.get("calendars").get(self.calendarId).get("busy", [])
         dic = {}

@@ -145,13 +145,13 @@ def add_event(call, appointment_type, appointment_mode, appointment_day, appoint
 {user.lastname}"
     t = time.strptime(appointment_time, "%H:%M")
     ts = (
-        datetime.datetime.strptime(appointment_day, "%Y-%m-%d") + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
-    ).strftime("%Y-%m-%dT%H:%M:%S%z")
+        datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
+        + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
+    ).astimezone(timezone(DEFAULT_TIME_ZONE)).strftime("%Y-%m-%dT%H:%M:%S%z")
     te = (
         datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
         + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + duration)
-    ).strftime("%Y-%m-%dT%H:%M:%S%z")
-
+    ).astimezone(timezone(DEFAULT_TIME_ZONE)).strftime("%Y-%m-%dT%H:%M:%S%z")
     if appointment_type == "single" and appointment_mode == "online":
         color = "1"
         event_type = "single_online"
@@ -253,7 +253,8 @@ def send_cancel_event_info(call, event):
 
 
 def check_date(date, schedule, appointment_type):
-    """Функция возвращает False если день date не содержится в графике режима работы schedule,
+    """Функция возвращает False если день date (2023-03-24 00:00:00+03:00) не содержится
+    в графике режима работы schedule,
     иначе возвращает словарь с начальным и конечным временем. Пример {"start":"10:00","end":"21:00"}"""
     if datetime.datetime.now(timezone(DEFAULT_TIME_ZONE)) > date:
         return False
@@ -301,4 +302,5 @@ def check_24h(e_id):
 
     event_inst = calendar.get_event(e_id)
     event_dt = datetime.datetime.strptime(event_inst["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z")
-    return False if (event_dt - datetime.datetime.now()) <= datetime.timedelta(hours=24) else True
+    delta = event_dt - datetime.datetime.now(tz=timezone(event_inst["start"]["timeZone"]))
+    return False if delta <= datetime.timedelta(hours=24) else True

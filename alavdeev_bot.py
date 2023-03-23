@@ -233,6 +233,7 @@ def set_enroll_type(message, user):
 # Длительность индивидуальных консультаций - <b>60 минут</b> \n\
 # Длительность парных консультаций - <b>90 минут</b>"
     text_new = "Вы хотите записаться на индивидуальную или парную консультацию?\n\n\
+Вам будет предложена запись по <b>московскому времени</b>.\n\
 Длительность индивидуальных консультаций - <b>60 минут</b> \n\
 Длительность парных консультаций - <b>90 минут</b>"
     try:
@@ -318,7 +319,7 @@ def calendar_online_single(call: CallbackQuery):
         month=month,
         day=day,
     )
-    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))
+    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -343,7 +344,9 @@ def calendar_online_single(call: CallbackQuery):
                 )
                 bot.send_message(
                     call.message.chat.id,
-                    "Выберите время, на которое вы бы хотели записаться",
+                    "Выберите время, на которое вы бы хотели записаться\n\
+Обратите внимание - используется <b>московское время</b>",
+                    parse_mode="html",
                     reply_markup=keyboard,
                 )
             else:
@@ -384,6 +387,7 @@ def calendar_offline_single(call: CallbackQuery):
         month=month,
         day=day,
     )
+    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -408,7 +412,9 @@ def calendar_offline_single(call: CallbackQuery):
                 )
                 bot.send_message(
                     call.message.chat.id,
-                    "Выберите время, на которое вы бы хотели записаться",
+                    "Выберите время, на которое вы бы хотели записаться\n\
+Обратите внимание - используется <b>московское время</b>",
+                    parse_mode="html",
                     reply_markup=keyboard,
                 )
             else:
@@ -450,6 +456,7 @@ def calendar_online_dual(call: CallbackQuery):
         month=month,
         day=day,
     )
+    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -473,7 +480,9 @@ def calendar_online_dual(call: CallbackQuery):
                 )
                 bot.send_message(
                     call.message.chat.id,
-                    "Выберите время, на которое вы бы хотели записаться",
+                    "Выберите время, на которое вы бы хотели записаться\n\
+Обратите внимание - используется <b>московское время</b>",
+                    parse_mode="html",
                     reply_markup=keyboard,
                 )
             else:
@@ -513,6 +522,7 @@ def calendar_offline_dual(call: CallbackQuery):
         month=month,
         day=day,
     )
+    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -537,7 +547,9 @@ def calendar_offline_dual(call: CallbackQuery):
                 )
                 bot.send_message(
                     call.message.chat.id,
-                    "Выберите время, на которое вы бы хотели записаться",
+                    "Выберите время, на которое вы бы хотели записаться\n\
+Обратите внимание - используется <b>московское время</b>",
+                    parse_mode="html",
                     reply_markup=keyboard,
                 )
             else:
@@ -672,7 +684,8 @@ def edit_appointment(call: CallbackQuery):
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
-                text="<b>Ваши записи:</b>",
+                text="<b>Ваши записи:</b>\n\
+Обратите внимание - используется <b>московское время</b>",
                 parse_mode="html",
                 reply_markup=keyboard,
             )
@@ -740,27 +753,29 @@ def delete_all_events(call: CallbackQuery):
     i = 1
     if events:
         for event in events:
-            e_type = type_to_rus(event["extendedProperties"]["private"]["type"]).split()[1].capitalize()
-            e_date = str(datetime.datetime.fromisoformat(event["start"]["dateTime"]).date())
-            e_time = f'{datetime.datetime.fromisoformat(event["start"]["dateTime"]).strftime("%H:%M")} - \
+            if check_24h(event["id"]):
+                e_type = type_to_rus(event["extendedProperties"]["private"]["type"]).split()[1].capitalize()
+                e_date = str(datetime.datetime.fromisoformat(event["start"]["dateTime"]).date())
+                e_time = f'{datetime.datetime.fromisoformat(event["start"]["dateTime"]).strftime("%H:%M")} - \
 {datetime.datetime.fromisoformat(event["end"]["dateTime"]).strftime("%H:%M")}'
-            calendar.delete_event(event.get("id", ""))
-            deleted_events_list.append(f"{i}) {e_type} консультация {e_date} {e_time}")
-            i += 1
+                calendar.delete_event(event.get("id", ""))
+                deleted_events_list.append(f"{i}) {e_type} консультация {e_date} {e_time}")
+                i += 1
         deleted_events_info = "\n".join(deleted_events_list)
         keyboard.add(InlineKeyboardButton("В начало", callback_data="info_appointment_START"))
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text="<b>Все Ваши записи отменены</b>",
+            text="Все возможные для отмены записи <b>отменены</b>",
             parse_mode="html",
             reply_markup=keyboard,
         )
-        bot.send_message(
-            MANAGER_ID,
-            text=deleted_events_info,
-            parse_mode="html",
-        )
+        if i > 1:
+            bot.send_message(
+                MANAGER_ID,
+                text=deleted_events_info,
+                parse_mode="html",
+            )
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("event_cancel::"))
@@ -881,6 +896,7 @@ def move_enroll_online_single(call: CallbackQuery):
         month=month,
         day=day,
     )
+    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -896,7 +912,7 @@ def move_enroll_online_single(call: CallbackQuery):
                     keyboard.add(
                         InlineKeyboardButton(
                             f"{hour}:{minutes}",
-                            callback_data=f"move_appointment::online_single::{date}::{hour}:{minutes}",
+                            callback_data=f"move_app::online_single::{date}::{hour}:{minutes}",
                         )
                     )
                 keyboard.row(
@@ -907,7 +923,9 @@ def move_enroll_online_single(call: CallbackQuery):
                 )
                 bot.send_message(
                     call.message.chat.id,
-                    "Выберите время, на которое вы бы хотели записаться",
+                    "Выберите время, на которое вы бы хотели записаться\n\
+Обратите внимание - используется <b>московское время</b>",
+                    parse_mode="html",
                     reply_markup=keyboard,
                 )
             else:
@@ -951,6 +969,7 @@ def move_enroll_offline_single(call: CallbackQuery):
         month=month,
         day=day,
     )
+    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -966,7 +985,7 @@ def move_enroll_offline_single(call: CallbackQuery):
                     keyboard.add(
                         InlineKeyboardButton(
                             f"{hour}:{minutes}",
-                            callback_data=f"move_appointment::offline_single::{date}::{hour}:{minutes}",
+                            callback_data=f"move_app::offline_single::{date}::{hour}:{minutes}",
                         )
                     )
                 keyboard.row(
@@ -977,7 +996,9 @@ def move_enroll_offline_single(call: CallbackQuery):
                 )
                 bot.send_message(
                     call.message.chat.id,
-                    "Выберите время, на которое вы бы хотели записаться",
+                    "Выберите время, на которое вы бы хотели записаться\n\
+Обратите внимание - используется <b>московское время</b>",
+                    parse_mode="html",
                     reply_markup=keyboard,
                 )
             else:
@@ -1022,6 +1043,7 @@ def move_enroll_online_dual(call: CallbackQuery):
         month=month,
         day=day,
     )
+    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -1037,7 +1059,7 @@ def move_enroll_online_dual(call: CallbackQuery):
                     keyboard.add(
                         InlineKeyboardButton(
                             f"{hour}:{minutes}",
-                            callback_data=f"move_appointment::online_dual::{date}::{hour}:{minutes}",
+                            callback_data=f"move_app::online_dual::{date}::{hour}:{minutes}",
                         )
                     )
                 keyboard.row(
@@ -1048,7 +1070,9 @@ def move_enroll_online_dual(call: CallbackQuery):
                 )
                 bot.send_message(
                     call.message.chat.id,
-                    "Выберите время, на которое вы бы хотели записаться",
+                    "Выберите время, на которое вы бы хотели записаться\n\
+Обратите внимание - используется <b>московское время</b>",
+                    parse_mode="html",
                     reply_markup=keyboard,
                 )
             else:
@@ -1092,6 +1116,7 @@ def move_enroll_offline_dual(call: CallbackQuery):
         month=month,
         day=day,
     )
+    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -1107,7 +1132,7 @@ def move_enroll_offline_dual(call: CallbackQuery):
                     keyboard.add(
                         InlineKeyboardButton(
                             f"{hour}:{minutes}",
-                            callback_data=f"move_appointment::offline_dual::{date}::{hour}:{minutes}",
+                            callback_data=f"move_app::offline_dual::{date}::{hour}:{minutes}",
                         )
                     )
                 keyboard.row(
@@ -1118,7 +1143,9 @@ def move_enroll_offline_dual(call: CallbackQuery):
                 )
                 bot.send_message(
                     call.message.chat.id,
-                    "Выберите время, на которое вы бы хотели записаться",
+                    "Выберите время, на которое вы бы хотели записаться\n\
+Обратите внимание - используется <b>московское время</b>",
+                    parse_mode="html",
                     reply_markup=keyboard,
                 )
             else:
@@ -1151,7 +1178,7 @@ def move_enroll_offline_dual(call: CallbackQuery):
         start_cmd(call.message)
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("move_appointment"))
+@bot.callback_query_handler(func=lambda call: call.data.startswith("move_app"))
 def move_appointment(call: CallbackQuery):
     appointment_type = call.data.split("::")[1]
     appointment_day = call.data.split("::")[2].split()[0]
@@ -1162,11 +1189,11 @@ def move_appointment(call: CallbackQuery):
         ts = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
-        ).strftime("%Y-%m-%dT%H:%M:%S%z")
+        ).astimezone(timezone(DEFAULT_TIME_ZONE)).strftime("%Y-%m-%dT%H:%M:%S%z")
         te = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + 60)
-        ).strftime("%Y-%m-%dT%H:%M:%S%z")
+        ).astimezone(timezone(DEFAULT_TIME_ZONE)).strftime("%Y-%m-%dT%H:%M:%S%z")
         event["start"]["dateTime"] = ts
         event["end"]["dateTime"] = te
     if appointment_type == "offline_single":
@@ -1174,11 +1201,11 @@ def move_appointment(call: CallbackQuery):
         ts = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
-        ).strftime("%Y-%m-%dT%H:%M:%S%z")
+        ).astimezone(timezone(DEFAULT_TIME_ZONE)).strftime("%Y-%m-%dT%H:%M:%S%z")
         te = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + 60)
-        ).strftime("%Y-%m-%dT%H:%M:%S%z")
+        ).astimezone(timezone(DEFAULT_TIME_ZONE)).strftime("%Y-%m-%dT%H:%M:%S%z")
         event["start"]["dateTime"] = ts
         event["end"]["dateTime"] = te
     if appointment_type == "online_dual":
@@ -1186,11 +1213,11 @@ def move_appointment(call: CallbackQuery):
         ts = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
-        ).strftime("%Y-%m-%dT%H:%M:%S%z")
+        ).astimezone(timezone(DEFAULT_TIME_ZONE)).strftime("%Y-%m-%dT%H:%M:%S%z")
         te = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + 90)
-        ).strftime("%Y-%m-%dT%H:%M:%S%z")
+        ).astimezone(timezone(DEFAULT_TIME_ZONE)).strftime("%Y-%m-%dT%H:%M:%S%z")
         event["start"]["dateTime"] = ts
         event["end"]["dateTime"] = te
     if appointment_type == "offline_dual":
@@ -1198,11 +1225,11 @@ def move_appointment(call: CallbackQuery):
         ts = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min)
-        ).strftime("%Y-%m-%dT%H:%M:%S%z")
+        ).astimezone(timezone(DEFAULT_TIME_ZONE)).strftime("%Y-%m-%dT%H:%M:%S%z")
         te = (
             datetime.datetime.strptime(appointment_day, "%Y-%m-%d")
             + datetime.timedelta(hours=t.tm_hour, minutes=t.tm_min + 90)
-        ).strftime("%Y-%m-%dT%H:%M:%S%z")
+        ).astimezone(timezone(DEFAULT_TIME_ZONE)).strftime("%Y-%m-%dT%H:%M:%S%z")
         event["start"]["dateTime"] = ts
         event["end"]["dateTime"] = te
     calendar.event_edit(global_event_id[call.message.chat.id], event)
