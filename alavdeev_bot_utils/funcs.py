@@ -182,8 +182,11 @@ def add_event(call, appointment_type, appointment_mode, appointment_day, appoint
 
 
 def send_event_info(call, event):
-    appointment_day = event["start"]["dateTime"].split("T")[0]
-    time = event["start"]["dateTime"].split("T")[1][:5]
+    user_tz_datetime_event = datetime.datetime.strptime(
+        event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"
+    ).astimezone(timezone(DEFAULT_TIME_ZONE)).strftime("%Y-%m-%dT%H:%M:%S%z")
+    appointment_day = user_tz_datetime_event.split("T")[0]
+    time = user_tz_datetime_event.split("T")[1][:5]
     msg_datetime = datetime.datetime.fromtimestamp(call.message.date)
     e_id = event.get("id")
     keyboard = InlineKeyboardMarkup()
@@ -212,8 +215,11 @@ def send_event_info(call, event):
 
 
 def send_move_event_info(call, event):
-    appointment_day = event["start"]["dateTime"].split("T")[0]
-    time = event["start"]["dateTime"].split("T")[1][:5]
+    user_tz_datetime_event = datetime.datetime.strptime(
+        event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"
+    ).astimezone(timezone(DEFAULT_TIME_ZONE)).strftime("%Y-%m-%dT%H:%M:%S%z")
+    appointment_day = user_tz_datetime_event.split("T")[0]
+    time = user_tz_datetime_event.split("T")[1][:5]
     msg_datetime = datetime.datetime.fromtimestamp(call.message.date)
     keyboard = InlineKeyboardMarkup()
     keyboard.row(
@@ -236,8 +242,11 @@ def send_move_event_info(call, event):
 
 
 def send_cancel_event_info(call, event):
-    appointment_day = event["start"]["dateTime"].split("T")[0]
-    time = event["start"]["dateTime"].split("T")[1][:5]
+    user_tz_datetime_event = datetime.datetime.strptime(
+        event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"
+    ).astimezone(timezone(DEFAULT_TIME_ZONE)).strftime("%Y-%m-%dT%H:%M:%S%z")
+    appointment_day = user_tz_datetime_event.split("T")[0]
+    time = user_tz_datetime_event.split("T")[1][:5]
     msg_datetime = datetime.datetime.fromtimestamp(call.message.date)
     keyboard = InlineKeyboardMarkup()
     keyboard.row(
@@ -304,3 +313,21 @@ def check_24h(e_id):
     event_dt = datetime.datetime.strptime(event_inst["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z")
     delta = event_dt - datetime.datetime.now(tz=timezone(event_inst["start"]["timeZone"]))
     return False if delta <= datetime.timedelta(hours=24) else True
+
+
+def convert_to_user_tz_time_list(free_time_list: list, tz: object):
+    '''Функция преобразования списка словарей формата [{"start": datetime_str, "end": datetime_str}] в список словарец
+    с преобразованными временами в формате [{"start": new_datetime_str, "end": new_datetime_str}]'''
+    converted_list = []
+    for interval in free_time_list:
+        converted_list.append(
+            {
+                "start": datetime.datetime.strptime(
+                    interval["start"], "%Y-%m-%dT%H:%M:%S%z"
+                ).astimezone(tz).strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "end": datetime.datetime.strptime(
+                    interval["end"], "%Y-%m-%dT%H:%M:%S%z"
+                ).astimezone(tz).strftime("%Y-%m-%dT%H:%M:%S%z")
+            }
+        )
+    return converted_list

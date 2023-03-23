@@ -326,7 +326,8 @@ def calendar_online_single(call: CallbackQuery):
         available_time_dict = check_date(date, schedule, "online")
         if available_time_dict:
             free_time_list = calendar.get_free_daytime(date, available_time_dict["start"], available_time_dict["end"])
-            free_slots = get_free_time_slots(free_time_list, 60)
+            user_tz_free_time_list = convert_to_user_tz_time_list(free_time_list, timezone(DEFAULT_TIME_ZONE))
+            free_slots = get_free_time_slots(user_tz_free_time_list, 60)
             keyboard = InlineKeyboardMarkup()
             if free_slots:
                 for slot in free_slots:
@@ -394,7 +395,8 @@ def calendar_offline_single(call: CallbackQuery):
         available_time_dict = check_date(date, schedule, "offline")
         if available_time_dict:
             free_time_list = calendar.get_free_daytime(date, available_time_dict["start"], available_time_dict["end"])
-            free_slots = get_free_time_slots(free_time_list, 60)
+            user_tz_free_time_list = convert_to_user_tz_time_list(free_time_list, timezone(DEFAULT_TIME_ZONE))
+            free_slots = get_free_time_slots(user_tz_free_time_list, 60)
             keyboard = InlineKeyboardMarkup()
             if free_slots:
                 for slot in free_slots:
@@ -463,7 +465,8 @@ def calendar_online_dual(call: CallbackQuery):
         available_time_dict = check_date(date, schedule, "online")
         if available_time_dict:
             free_time_list = calendar.get_free_daytime(date, available_time_dict["start"], available_time_dict["end"])
-            free_slots = get_free_time_slots(free_time_list, 90)
+            user_tz_free_time_list = convert_to_user_tz_time_list(free_time_list, timezone(DEFAULT_TIME_ZONE))
+            free_slots = get_free_time_slots(user_tz_free_time_list, 90)
             keyboard = InlineKeyboardMarkup()
             if free_slots:
                 for slot in free_slots:
@@ -529,7 +532,8 @@ def calendar_offline_dual(call: CallbackQuery):
         available_time_dict = check_date(date, schedule, "offline")
         if available_time_dict:
             free_time_list = calendar.get_free_daytime(date, available_time_dict["start"], available_time_dict["end"])
-            free_slots = get_free_time_slots(free_time_list, 90)
+            user_tz_free_time_list = convert_to_user_tz_time_list(free_time_list, timezone(DEFAULT_TIME_ZONE))
+            free_slots = get_free_time_slots(user_tz_free_time_list, 90)
             keyboard = InlineKeyboardMarkup()
             if free_slots:
                 for slot in free_slots:
@@ -903,7 +907,8 @@ def move_enroll_online_single(call: CallbackQuery):
         available_time_dict = check_date(date, schedule, "online")
         if available_time_dict:
             free_time_list = calendar.get_free_daytime(date, available_time_dict["start"], available_time_dict["end"])
-            free_slots = get_free_time_slots(free_time_list, 60)
+            user_tz_free_time_list = convert_to_user_tz_time_list(free_time_list, timezone(DEFAULT_TIME_ZONE))
+            free_slots = get_free_time_slots(user_tz_free_time_list, 60)
             keyboard = InlineKeyboardMarkup()
             if free_slots:
                 for slot in free_slots:
@@ -976,7 +981,8 @@ def move_enroll_offline_single(call: CallbackQuery):
         available_time_dict = check_date(date, schedule, "offline")
         if available_time_dict:
             free_time_list = calendar.get_free_daytime(date, available_time_dict["start"], available_time_dict["end"])
-            free_slots = get_free_time_slots(free_time_list, 60)
+            user_tz_free_time_list = convert_to_user_tz_time_list(free_time_list, timezone(DEFAULT_TIME_ZONE))
+            free_slots = get_free_time_slots(user_tz_free_time_list, 60)
             keyboard = InlineKeyboardMarkup()
             if free_slots:
                 for slot in free_slots:
@@ -1050,7 +1056,8 @@ def move_enroll_online_dual(call: CallbackQuery):
         available_time_dict = check_date(date, schedule, "online")
         if available_time_dict:
             free_time_list = calendar.get_free_daytime(date, available_time_dict["start"], available_time_dict["end"])
-            free_slots = get_free_time_slots(free_time_list, 90)
+            user_tz_free_time_list = convert_to_user_tz_time_list(free_time_list, timezone(DEFAULT_TIME_ZONE))
+            free_slots = get_free_time_slots(user_tz_free_time_list, 90)
             keyboard = InlineKeyboardMarkup()
             if free_slots:
                 for slot in free_slots:
@@ -1123,7 +1130,8 @@ def move_enroll_offline_dual(call: CallbackQuery):
         available_time_dict = check_date(date, schedule, "offline")
         if available_time_dict:
             free_time_list = calendar.get_free_daytime(date, available_time_dict["start"], available_time_dict["end"])
-            free_slots = get_free_time_slots(free_time_list, 90)
+            user_tz_free_time_list = convert_to_user_tz_time_list(free_time_list, timezone(DEFAULT_TIME_ZONE))
+            free_slots = get_free_time_slots(user_tz_free_time_list, 90)
             keyboard = InlineKeyboardMarkup()
             if free_slots:
                 for slot in free_slots:
