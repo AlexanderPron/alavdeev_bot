@@ -636,6 +636,7 @@ def appointment_recurrence_yes(call: CallbackQuery):
 в {event["start"]["dateTime"].split("T")[1][:5]}\n'
     for created_event in created_events_list:
         i += 1
+        created_event = convert_event_dt_to_user_tz(created_event, timezone(DEFAULT_TIME_ZONE))
         appointment_day = created_event["start"]["dateTime"].split("T")[0]
         time = created_event["start"]["dateTime"].split("T")[1][:5]
         events_info += f"{i}) {appointment_day} в {time}\n"
@@ -684,9 +685,19 @@ def edit_appointment(call: CallbackQuery):
             for event in events:
                 event = convert_event_dt_to_user_tz(event, timezone(DEFAULT_TIME_ZONE))
                 e_type = type_to_rus(event["extendedProperties"]["private"]["type"]).split()[1].capitalize()
-                e_date = str(datetime.datetime.fromisoformat(event["start"]["dateTime"]).date())
-                e_time = f'{datetime.datetime.fromisoformat(event["start"]["dateTime"]).strftime("%H:%M")} - \
-{datetime.datetime.fromisoformat(event["end"]["dateTime"]).strftime("%H:%M")}'
+                e_date = datetime.datetime.strptime(
+                    event["start"]["dateTime"],
+                    "%Y-%m-%dT%H:%M:%S%z"
+                ).strftime("%Y-%m-%d")
+                e_time_start = datetime.datetime.strptime(
+                    event["start"]["dateTime"],
+                    "%Y-%m-%dT%H:%M:%S%z"
+                ).strftime("%H:%M")
+                e_time_end = datetime.datetime.strptime(
+                    event["end"]["dateTime"],
+                    "%Y-%m-%dT%H:%M:%S%z"
+                ).strftime("%H:%M")
+                e_time = f'{e_time_start} - {e_time_end}'
                 keyboard.add(
                     InlineKeyboardButton(
                         f"{e_type} консультация {e_date} {e_time}", callback_data=f'event::{event["id"]}'
@@ -1259,33 +1270,33 @@ def move_appointment(call: CallbackQuery):
 
 
 def main():
-    try:
-        while True:
-            try:
-                bot.polling(non_stop=True)
-            except (
-                ReadTimeout,
-                ReadTimeoutError,
-                TimeoutError,
-                RemoteDisconnected,
-                ProtocolError,
-                ConnectionError,
-            ):
-                time.sleep(5)
-                continue
-    except KeyboardInterrupt:
-        sys.exit()
     # try:
-    #     bot.polling(non_stop=True)
-    # except (
-    #     ReadTimeout,
-    #     ReadTimeoutError,
-    #     TimeoutError,
-    #     RemoteDisconnected,
-    #     ProtocolError,
-    #     ConnectionError,
-    # ):
-    #     time.sleep(5)
+    #     while True:
+    #         try:
+    #             bot.polling(non_stop=True)
+    #         except (
+    #             ReadTimeout,
+    #             ReadTimeoutError,
+    #             TimeoutError,
+    #             RemoteDisconnected,
+    #             ProtocolError,
+    #             ConnectionError,
+    #         ):
+    #             time.sleep(5)
+    #             continue
+    # except KeyboardInterrupt:
+    #     sys.exit()
+    try:
+        bot.polling(non_stop=True)
+    except (
+        ReadTimeout,
+        ReadTimeoutError,
+        TimeoutError,
+        RemoteDisconnected,
+        ProtocolError,
+        ConnectionError,
+    ):
+        time.sleep(5)
 
 
 if __name__ == "__main__":
