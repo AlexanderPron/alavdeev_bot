@@ -746,9 +746,19 @@ def event_detail(call: CallbackQuery):
     e_id = call.data.split("::")[1]
     event = calendar.get_event(e_id)
     event = convert_event_dt_to_user_tz(event, timezone(DEFAULT_TIME_ZONE))
-    e_date = str(datetime.datetime.fromisoformat(event["start"]["dateTime"]).date())
-    e_time = f'{datetime.datetime.fromisoformat(event["start"]["dateTime"]).strftime("%H:%M")} - \
-{datetime.datetime.fromisoformat(event["end"]["dateTime"]).strftime("%H:%M")}'
+    e_date = datetime.datetime.strptime(
+        event["start"]["dateTime"],
+        "%Y-%m-%dT%H:%M:%S%z"
+    ).strftime("%Y-%m-%d")
+    e_time_start = datetime.datetime.strptime(
+        event["start"]["dateTime"],
+        "%Y-%m-%dT%H:%M:%S%z"
+    ).strftime("%H:%M")
+    e_time_end = datetime.datetime.strptime(
+        event["end"]["dateTime"],
+        "%Y-%m-%dT%H:%M:%S%z"
+    ).strftime("%H:%M")
+    e_time = f'{e_time_start} - {e_time_end}'
     keyboard.row(
         InlineKeyboardButton("Отменить", callback_data=f"event_cancel::{e_id}"),
         InlineKeyboardButton("Перезаписаться", callback_data=f"event_edit::{e_id}"),
