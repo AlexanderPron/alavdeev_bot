@@ -1270,33 +1270,33 @@ def move_appointment(call: CallbackQuery):
 
 
 def main():
-    # try:
-    #     while True:
-    #         try:
-    #             bot.polling(non_stop=True)
-    #         except (
-    #             ReadTimeout,
-    #             ReadTimeoutError,
-    #             TimeoutError,
-    #             RemoteDisconnected,
-    #             ProtocolError,
-    #             ConnectionError,
-    #         ):
-    #             time.sleep(5)
-    #             continue
-    # except KeyboardInterrupt:
-    #     sys.exit()
     try:
-        bot.polling(non_stop=True)
-    except (
-        ReadTimeout,
-        ReadTimeoutError,
-        TimeoutError,
-        RemoteDisconnected,
-        ProtocolError,
-        ConnectionError,
-    ):
-        time.sleep(5)
+        while True:
+            try:
+                bot.polling(non_stop=True)
+            except (
+                ReadTimeout,
+                ReadTimeoutError,
+                TimeoutError,
+                RemoteDisconnected,
+                ProtocolError,
+                ConnectionError,
+            ):
+                time.sleep(5)
+                continue
+    except KeyboardInterrupt:
+        sys.exit()
+    # try:
+    #     bot.polling(non_stop=True)
+    # except (
+    #     ReadTimeout,
+    #     ReadTimeoutError,
+    #     TimeoutError,
+    #     RemoteDisconnected,
+    #     ProtocolError,
+    #     ConnectionError,
+    # ):
+    #     time.sleep(5)
 
 
 if __name__ == "__main__":
