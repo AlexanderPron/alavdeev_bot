@@ -27,7 +27,7 @@ def add_log(msg_text, msg_type="info", log_file=log_file):
 def convert_schedule_json_to_text(json_file):
     with io.open(json_file, "r", encoding="utf-8") as f:
         text = "<b>Вы можете записаться на консультацию</b>\n\
-Обратите внимание - используется <b>московское время</b>"
+Обратите внимание - используется <b>московское время</b>\n"
         json_str = f.read()
         json_obj = json.loads(json_str)
         for sch_type in json_obj.keys():
@@ -332,3 +332,13 @@ def convert_to_user_tz_time_list(free_time_list: list, tz: object):
             }
         )
     return converted_list
+
+
+def convert_event_dt_to_user_tz(event: object, tz: object) -> object:
+    event["start"]["dateTime"] = datetime.datetime.strptime(
+        event["start"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"
+    ).astimezone(tz).strftime("%Y-%m-%dT%H:%M:%S%z")
+    event["end"]["dateTime"] = datetime.datetime.strptime(
+        event["end"]["dateTime"], "%Y-%m-%dT%H:%M:%S%z"
+    ).astimezone(tz).strftime("%Y-%m-%dT%H:%M:%S%z")
+    return event

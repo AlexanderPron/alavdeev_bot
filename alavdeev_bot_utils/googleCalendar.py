@@ -63,7 +63,8 @@ class GoogleCalendar(object):
                             event["extendedProperties"]["private"]["type"],
                             event["summary"],
                             event["description"],
-                            dt["start"], dt["end"],
+                            dt["start"],
+                            dt["end"],
                             colorId=event["colorId"],
                         )
                         event_inst = self.create_event(new_event)
