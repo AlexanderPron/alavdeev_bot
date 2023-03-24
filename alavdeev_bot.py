@@ -780,9 +780,19 @@ def delete_all_events(call: CallbackQuery):
             if check_24h(event["id"]):
                 event = convert_event_dt_to_user_tz(event, timezone(DEFAULT_TIME_ZONE))
                 e_type = type_to_rus(event["extendedProperties"]["private"]["type"]).split()[1].capitalize()
-                e_date = str(datetime.datetime.fromisoformat(event["start"]["dateTime"]).date())
-                e_time = f'{datetime.datetime.fromisoformat(event["start"]["dateTime"]).strftime("%H:%M")} - \
-{datetime.datetime.fromisoformat(event["end"]["dateTime"]).strftime("%H:%M")}'
+                e_date = datetime.datetime.strptime(
+                    event["start"]["dateTime"],
+                    "%Y-%m-%dT%H:%M:%S%z"
+                ).strftime("%Y-%m-%d")
+                e_time_start = datetime.datetime.strptime(
+                    event["start"]["dateTime"],
+                    "%Y-%m-%dT%H:%M:%S%z"
+                ).strftime("%H:%M")
+                e_time_end = datetime.datetime.strptime(
+                    event["end"]["dateTime"],
+                    "%Y-%m-%dT%H:%M:%S%z"
+                ).strftime("%H:%M")
+                e_time = f'{e_time_start} - {e_time_end}'
                 calendar.delete_event(event.get("id", ""))
                 deleted_events_list.append(f"{i}) {e_type} консультация {e_date} {e_time}")
                 i += 1
