@@ -319,7 +319,8 @@ def calendar_online_single(call: CallbackQuery):
         month=month,
         day=day,
     )
-    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
+    if isinstance(date, datetime.datetime):
+        date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -388,7 +389,8 @@ def calendar_offline_single(call: CallbackQuery):
         month=month,
         day=day,
     )
-    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
+    if isinstance(date, datetime.datetime):
+        date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -458,7 +460,8 @@ def calendar_online_dual(call: CallbackQuery):
         month=month,
         day=day,
     )
-    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
+    if isinstance(date, datetime.datetime):
+        date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -525,7 +528,8 @@ def calendar_offline_dual(call: CallbackQuery):
         month=month,
         day=day,
     )
-    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
+    if isinstance(date, datetime.datetime):
+        date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -942,7 +946,8 @@ def move_enroll_online_single(call: CallbackQuery):
         month=month,
         day=day,
     )
-    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
+    if isinstance(date, datetime.datetime):
+        date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -1016,7 +1021,8 @@ def move_enroll_offline_single(call: CallbackQuery):
         month=month,
         day=day,
     )
-    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
+    if isinstance(date, datetime.datetime):
+        date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -1091,7 +1097,8 @@ def move_enroll_online_dual(call: CallbackQuery):
         month=month,
         day=day,
     )
-    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
+    if isinstance(date, datetime.datetime):
+        date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -1165,7 +1172,8 @@ def move_enroll_offline_dual(call: CallbackQuery):
         month=month,
         day=day,
     )
-    date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
+    if isinstance(date, datetime.datetime):
+        date = date.astimezone(timezone(DEFAULT_TIME_ZONE))  # Ex. 2023-03-24 00:00:00+03:00
     if action == "DAY":
         with io.open(schedule_file_json, "r", encoding="utf-8") as f:
             schedule = f.read()
@@ -1290,33 +1298,33 @@ def move_appointment(call: CallbackQuery):
 
 
 def main():
-    try:
-        while True:
-            try:
-                bot.polling(non_stop=True)
-            except (
-                ReadTimeout,
-                ReadTimeoutError,
-                TimeoutError,
-                RemoteDisconnected,
-                ProtocolError,
-                ConnectionError,
-            ):
-                time.sleep(5)
-                continue
-    except KeyboardInterrupt:
-        sys.exit()
     # try:
-    #     bot.polling(non_stop=True)
-    # except (
-    #     ReadTimeout,
-    #     ReadTimeoutError,
-    #     TimeoutError,
-    #     RemoteDisconnected,
-    #     ProtocolError,
-    #     ConnectionError,
-    # ):
-    #     time.sleep(5)
+    #     while True:
+    #         try:
+    #             bot.polling(non_stop=True)
+    #         except (
+    #             ReadTimeout,
+    #             ReadTimeoutError,
+    #             TimeoutError,
+    #             RemoteDisconnected,
+    #             ProtocolError,
+    #             ConnectionError,
+    #         ):
+    #             time.sleep(5)
+    #             continue
+    # except KeyboardInterrupt:
+    #     sys.exit()
+    try:
+        bot.polling(non_stop=True)
+    except (
+        ReadTimeout,
+        ReadTimeoutError,
+        TimeoutError,
+        RemoteDisconnected,
+        ProtocolError,
+        ConnectionError,
+    ):
+        time.sleep(5)
 
 
 if __name__ == "__main__":
