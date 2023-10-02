@@ -6,11 +6,11 @@ import sqlalchemy
 
 
 engine_inst = create_engine(engine)
-try:
-    if not sqlalchemy.inspect(engine).has_table("USERS"):
+if not sqlalchemy.inspect(engine).has_table("USERS"):
+    try:
         Base.metadata.create_all(engine_inst)
         print("Таблицы созданы успешно")
-    else:
-        print("Таблицы уже есть")
-except Exception as e:
-    print(f"Что-то не так:\n{e}")
+    except Exception as e:
+        print(f"Что-то не так:\n{e}")
+else:
+    print("Таблицы уже есть")
