@@ -6,7 +6,7 @@ import sqlalchemy
 
 
 engine_inst = create_engine(engine)
-if not sqlalchemy.inspect(engine_inst).has_table("USERS"):
+if not sqlalchemy.inspect(engine_inst).has_table("users"):
     try:
         Base.metadata.create_all(engine_inst)
         print("Таблицы созданы успешно")
