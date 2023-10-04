@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  bot:
+    container_name: python_bot
+    build: ./
+    depends_on:
+      - db
+
+  db:
+    container_name: database_bot
+    restart: always
+    image: postgres:15
+    volumes: bot-db:/var/lib/postgresql/data/
+    environment:
+      - PGDATA: /data/postgres
+      - POSTGRES_USER: botmanager
+      - POSTGRES_DB: botmanager      
+      - POSTGRES_PASSWORD: xxxxxx
+    ports:
+      - 5432:5432
+volumes:
+  bot-db:
+    driver: local
